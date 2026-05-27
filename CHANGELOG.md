@@ -76,6 +76,19 @@
   replacing them. Patterns you pass are added to the built-in defaults;
   use `--no-default-excludes` if you need to suppress the defaults.
 
+## [0.3.0](https://github.com/lezli01/anal/compare/v0.2.0...v0.3.0) (2026-05-27)
+
+
+### Features
+
+* fixing version handling ([3460776](https://github.com/lezli01/anal/commit/34607762c6cdf11b87522b85a40f3884d060c13d))
+
+
+### Bug Fixes
+
+* fixed ci ([30aa5b6](https://github.com/lezli01/anal/commit/30aa5b67a1f33fc18d3a0918d9fef6203fdd1497))
+* refreshed readme ([391d527](https://github.com/lezli01/anal/commit/391d527d6a51af8f97630b32a09a5342da82e2a4))
+
 ## [0.2.0](https://github.com/lezli01/anal/compare/v0.1.0...v0.2.0) (2026-05-27)
 
 
