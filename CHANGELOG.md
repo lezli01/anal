@@ -45,6 +45,8 @@
 
 - Fixed directory include discovery on Windows.
 - `anal` is now installable alongside `freezed ^3.2.5`.
+- `dart run anal --version` now prints the correct package version
+  (`0.2.0`) instead of the stale hardcoded `0.1.0`.
 
 ### Changed
 

@@ -150,7 +150,7 @@ Closes: #42
 
 - Follows **[Semantic Versioning](https://semver.org/)** as adapted by `pub.dev`.
 - Update [CHANGELOG.md](CHANGELOG.md) with every user-visible change under the next version heading.
-- Bump `version:` in [pubspec.yaml](pubspec.yaml) in the same commit that finalizes the changelog entry.
+- Bump `version:` in [pubspec.yaml](pubspec.yaml) in the same commit that finalizes the changelog entry. Also update the `_version` constant in [bin/anal.dart](bin/anal.dart) to match, or `dart run anal --version` will report the previous version.
 - Validate with `fvm dart pub publish --dry-run` before tagging.
 - Tag releases as `vX.Y.Z` matching the pubspec version.
 
@@ -164,6 +164,7 @@ Closes: #42
 6. **Don't edit `CHANGELOG.md` retroactively** for already-published versions; add a new entry instead.
 7. **Don't add license headers per file** unless the project policy changes — the root [LICENSE](LICENSE) covers the package.
 8. **Be mindful of `pubspec.yaml` fields** required by pub.dev for scoring: `description` (60–180 chars), `homepage`/`repository`, `version`, `environment`. The current `description` is a placeholder and should be improved before publishing.
+9. **Keep the CLI `_version` constant in sync with `pubspec.yaml`.** [bin/anal.dart](bin/anal.dart) hardcodes a `_version` string used by `dart run anal --version`. Whenever `version:` in [pubspec.yaml](pubspec.yaml) changes (release commits, release-please PRs), update `_version` in the same commit, or `--version` will report a stale value.
 
 ## Open Source Hygiene
 
