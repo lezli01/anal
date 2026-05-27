@@ -232,6 +232,34 @@ void main() {}
 ''');
       expect(diagnostics, isEmpty);
     });
+
+    // Regression test for the `UnsupportedError: Requires
+    // useDeclaringConstructorsAst = true` crash when reading
+    // `ClassDeclaration.namePart` / `EnumDeclaration.namePart` on analyzer
+    // 9.x/10.x with the experimental flag off. Analysis must complete
+    // without throwing and must only report the private declarations.
+    test(
+      'does not throw on mixed public/private class and enum declarations',
+      () async {
+        const source = '''
+class PublicClass {}
+class _PrivateClass {}
+enum PublicEnum { a, b }
+enum _PrivateEnum { a, b }
+void main() {}
+''';
+        await expectLater(runRule(source), completes);
+        final diagnostics = await runRule(source);
+        expect(diagnostics, hasLength(2));
+        final messages = diagnostics.map((d) => d.message).toList();
+        expect(messages, anyElement(contains('_PrivateClass')));
+        expect(messages, anyElement(contains('_PrivateEnum')));
+        for (final message in messages) {
+          expect(message, isNot(contains('PublicClass')));
+          expect(message, isNot(contains('PublicEnum')));
+        }
+      },
+    );
   });
 }
 

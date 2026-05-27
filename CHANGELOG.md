@@ -92,6 +92,13 @@
   pinned to analyzer 9.0.0 (`'primaryConstructor' isn't defined for the type
   'ExtensionTypeDeclaration'`). The rule now uses the cross-version
   `ExtensionTypeDeclaration.name` accessor.
+- `unused_class` no longer crashes on analyzer 9.x/10.x. The rule
+  previously read `ClassDeclaration.namePart` and
+  `EnumDeclaration.namePart`, which require the default-off experimental
+  flag `useDeclaringConstructorsAst = true` and otherwise throw
+  `UnsupportedError`, surfacing as
+  `Rule unused_class threw during analysis: ...`. The rule now uses the
+  always-available `name` token on both nodes.
 
 ### Commits
 

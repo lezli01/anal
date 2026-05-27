@@ -110,7 +110,12 @@ class UnusedClassRule implements AnalyzerRule {
 
   _Candidate? _candidateFor(CompilationUnitMember declaration) {
     if (declaration is ClassDeclaration) {
-      final nameToken = declaration.namePart.typeName;
+      // `ClassDeclaration.namePart` is only available with the experimental
+      // `useDeclaringConstructorsAst` flag enabled (default-off in analyzer
+      // 9.x/10.x); accessing it otherwise throws `UnsupportedError`. The
+      // always-available `name` token is used instead.
+      // ignore: deprecated_member_use
+      final nameToken = declaration.name;
       if (!_isPrivateName(nameToken.lexeme)) return null;
       if (_hasVmEntryPointPragma(declaration.metadata)) return null;
       return _Candidate(
@@ -129,7 +134,11 @@ class UnusedClassRule implements AnalyzerRule {
       );
     }
     if (declaration is EnumDeclaration) {
-      final nameToken = declaration.namePart.typeName;
+      // See the `ClassDeclaration` branch above: `namePart` requires the
+      // default-off `useDeclaringConstructorsAst` experimental flag and
+      // throws `UnsupportedError` otherwise, so we use `name` instead.
+      // ignore: deprecated_member_use
+      final nameToken = declaration.name;
       if (!_isPrivateName(nameToken.lexeme)) return null;
       if (_hasVmEntryPointPragma(declaration.metadata)) return null;
       return _Candidate(
