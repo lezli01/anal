@@ -12,6 +12,8 @@ export 'src/analysis_context.dart';
 export 'src/analysis_runner.dart';
 export 'src/analyzer_rule.dart';
 export 'src/diagnostic.dart';
+export 'src/multi_file_analysis_context.dart';
+export 'src/multi_file_analyzer_rule.dart';
 export 'src/reporter.dart';
 export 'src/rule_registry.dart';
 export 'src/rules/unused_function_rule.dart';
