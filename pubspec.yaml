@@ -1,6 +1,6 @@
 name: anal
 description: A pluggable static analysis framework for Dart and Flutter projects with an extensible runner, rule registry, and CLI.
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/lezli01/anal
 repository: https://github.com/lezli01/anal
 issue_tracker: https://github.com/lezli01/anal/issues
