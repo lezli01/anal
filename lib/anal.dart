@@ -16,7 +16,7 @@ export 'src/multi_file_analysis_context.dart';
 export 'src/multi_file_analyzer_rule.dart';
 export 'src/reporter.dart';
 export 'src/rule_registry.dart';
-export 'src/rules/unused_function_rule.dart';
+export 'src/rules/unused_function_rule.dart' show UnusedFunctionRule;
 export 'src/rules/unused_class_rule.dart';
 export 'src/rules/unused_source_file_rule.dart';
 export 'src/severity.dart';

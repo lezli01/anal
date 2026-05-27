@@ -79,11 +79,15 @@ Exit codes:
 - **Id:** `unused_function`
 - **Default severity:** `warning`
 
-Flags file-local function declarations that are never referenced:
+A cross-file rule that flags function declarations that are never referenced
+anywhere in the analyzed set of Dart files:
 
-- top-level private functions, whose names begin with `_`, in libraries that
-  have no `part` files;
+- top-level private functions whose names begin with `_`;
 - local function declarations inside another function or method body.
+
+A single reference index is built once per run from every analyzed unit,
+so a private function used from a sibling `part` file, or in a different
+file in the same library, is correctly treated as "used".
 
 Both direct calls, such as `_foo()`, and tear-offs, such as `_foo`, count as a
 use.
@@ -94,8 +98,7 @@ Deliberately not flagged in this release:
 - the library's `main` function;
 - methods, constructors, getters, setters, and operators;
 - `external` functions;
-- functions annotated with `@pragma('vm:entry-point')`;
-- files belonging to libraries that have `part` files.
+- functions annotated with `@pragma('vm:entry-point')`.
 
 ### `unused_class`
 
