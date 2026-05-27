@@ -17,6 +17,16 @@
   at `Severity.warning`. The rule is registered by the built-in CLI and enabled
   automatically. Running `dart run anal` against a project that previously
   produced no diagnostics may now surface new warnings from this rule.
+- New default-on `unused_class` rule. It flags file-local declarations
+  that are never referenced within the same compilation unit, covering
+  `class`, `mixin`, `enum`, and `extension type` declarations whose names
+  begin with `_`. The rule only runs against libraries that have no
+  `part` files and skips declarations annotated with
+  `@pragma('vm:entry-point')`. Diagnostics are emitted at
+  `Severity.warning`. The rule is registered by the built-in CLI and
+  enabled automatically. Running `dart run anal` against a project that
+  previously produced no diagnostics may now surface new warnings from
+  this rule.
 - Open-source project guidance, issue templates, pull request checklist,
   security policy, code of conduct, and Dependabot configuration.
 - Coverage artifact upload to CI.
@@ -44,6 +54,27 @@
 - `--exclude` now layers on top of the default excludes instead of
   replacing them. Patterns you pass are added to the built-in defaults;
   use `--no-default-excludes` if you need to suppress the defaults.
+
+## [0.2.0](https://github.com/lezli01/anal/compare/v0.1.0...v0.2.0) (2026-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** Calculator is removed from the public API.
+
+### Features
+
+* add Severity, SourceLocation, Diagnostic value types ([0b965cd](https://github.com/lezli01/anal/commit/0b965cdc42f24f356aec89bc32f0ad3f91c08c46))
+* **api:** re-export public surface from lib/anal.dart ([4cef459](https://github.com/lezli01/anal/commit/4cef4595278018e6990da490b7b568ab720c686e))
+* **cli:** add bin/anal.dart CLI entry point ([ae0fa3b](https://github.com/lezli01/anal/commit/ae0fa3b5939055b3352b5f846ce05e06f94bc29e))
+* frame basics ([44c400e](https://github.com/lezli01/anal/commit/44c400e1b08acefa6be90fbb1cf888358f6c5030))
+* **options:** add AnalOptions value class ([2c0cb6c](https://github.com/lezli01/anal/commit/2c0cb6c0f80198800620a68d803095829b6a3c4d))
+* **reporter:** add Reporter abstraction and ConsoleReporter ([85e556d](https://github.com/lezli01/anal/commit/85e556d7aec029d4e9b4c45095b3a02e2a2bc664))
+* **rules:** add AnalyzerRule contract, AnalysisContext, RuleRegistry ([0e45827](https://github.com/lezli01/anal/commit/0e458273cb04a7d653ab3579d0f6aa01d6d1303d))
+* **rules:** add unused_class rule ([4adcd8e](https://github.com/lezli01/anal/commit/4adcd8ee761094d837c49a31d08b067548c11677))
+* **rules:** add unused_function rule ([84e9528](https://github.com/lezli01/anal/commit/84e95287cb5b408bf849fdbaf1c79836bcbc568f))
+* **rules:** register unused_function rule in CLI ([2ea76c1](https://github.com/lezli01/anal/commit/2ea76c1950a1bb388ab4fe9ec35287479998d83f))
+* **runner:** add AnalysisRunner orchestrator and smoke test ([b721079](https://github.com/lezli01/anal/commit/b721079ef8157570d3efc260013be8d20aa75e85))
 
 ## 0.1.0
 
