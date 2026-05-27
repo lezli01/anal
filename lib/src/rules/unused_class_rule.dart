@@ -1,0 +1,230 @@
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/token.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/source/line_info.dart';
+
+import '../analysis_context.dart';
+import '../analyzer_rule.dart';
+import '../diagnostic.dart';
+import '../severity.dart';
+import '../source_location.dart';
+
+/// Flags file-local class, mixin, enum, and extension-type declarations that
+/// are never referenced.
+///
+/// The rule is intentionally file-local: per the frame's dispatch model, a
+/// rule sees one resolved compilation unit at a time and cannot reason about
+/// references in sibling files. Four kinds of top-level declarations are
+/// inspected:
+///
+/// * `ClassDeclaration` — covers `class`, `abstract class`, and `base`,
+///   `final`, `sealed`, and `interface` modifiers (all surface as
+///   `ClassDeclaration` in the AST).
+/// * `MixinDeclaration`.
+/// * `EnumDeclaration`.
+/// * `ExtensionTypeDeclaration`.
+///
+/// Only **private** declarations (identifier begins with `_`) are
+/// candidates, and only when the enclosing library has no `part` files,
+/// because otherwise a sibling part could legitimately reference the
+/// declaration.
+///
+/// A declaration is considered "used" if any `SimpleIdentifier` in the
+/// compilation unit resolves (via `staticElement`) to its declared element.
+/// This captures type annotations, constructor invocations, `extends`,
+/// `implements`, `with`, and `on` clauses, `is`/`as` checks, static-member
+/// access, enum-value access, and constructor or static tear-offs.
+///
+/// The rule deliberately ignores:
+///
+/// * public top-level declarations (names not starting with `_`);
+/// * `ClassTypeAlias` declarations such as `class _Foo = A with B;` —
+///   out of scope for the first cut;
+/// * `extension` declarations (non-type `ExtensionDeclaration`) — out of
+///   scope for the first cut;
+/// * declarations annotated with `@pragma('vm:entry-point')`.
+class UnusedClassRule implements AnalyzerRule {
+  /// Creates an instance of the rule. Stateless and `const`-constructible.
+  const UnusedClassRule();
+
+  @override
+  String get id => 'unused_class';
+
+  @override
+  String get description =>
+      'Flags file-local class, mixin, enum, and extension-type declarations '
+      'that are never referenced.';
+
+  @override
+  Severity get defaultSeverity => Severity.warning;
+
+  @override
+  Iterable<Diagnostic> analyze(AnalysisContext context) {
+    final compilationUnit = context.unit.unit;
+    final libraryElement = context.unit.libraryElement;
+    final lineInfo = context.unit.lineInfo;
+    final filePath = context.filePath;
+
+    if (libraryElement.parts.isNotEmpty) {
+      return const <Diagnostic>[];
+    }
+
+    final candidates = <_Candidate>[];
+    for (final declaration in compilationUnit.declarations) {
+      final candidate = _candidateFor(declaration);
+      if (candidate != null) {
+        candidates.add(candidate);
+      }
+    }
+
+    if (candidates.isEmpty) {
+      return const <Diagnostic>[];
+    }
+
+    final unitReferences = <Element>{};
+    compilationUnit.accept(_ReferenceCollector(unitReferences));
+
+    final diagnostics = <Diagnostic>[];
+    for (final candidate in candidates) {
+      final element = candidate.element;
+      if (element == null) continue;
+      if (unitReferences.contains(element)) continue;
+      diagnostics.add(
+        _buildDiagnostic(
+          candidate: candidate,
+          filePath: filePath,
+          lineInfo: lineInfo,
+        ),
+      );
+    }
+
+    diagnostics.sort((a, b) {
+      final byLine = a.location.line.compareTo(b.location.line);
+      if (byLine != 0) return byLine;
+      return a.location.column.compareTo(b.location.column);
+    });
+
+    return diagnostics;
+  }
+
+  _Candidate? _candidateFor(CompilationUnitMember declaration) {
+    if (declaration is ClassDeclaration) {
+      if (!_isPrivateName(declaration.name.lexeme)) return null;
+      if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+      return _Candidate(
+        nameToken: declaration.name,
+        element: declaration.declaredElement,
+        kindLabel: 'class',
+      );
+    }
+    if (declaration is MixinDeclaration) {
+      if (!_isPrivateName(declaration.name.lexeme)) return null;
+      if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+      return _Candidate(
+        nameToken: declaration.name,
+        element: declaration.declaredElement,
+        kindLabel: 'mixin',
+      );
+    }
+    if (declaration is EnumDeclaration) {
+      if (!_isPrivateName(declaration.name.lexeme)) return null;
+      if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+      return _Candidate(
+        nameToken: declaration.name,
+        element: declaration.declaredElement,
+        kindLabel: 'enum',
+      );
+    }
+    // ignore: experimental_member_use
+    if (declaration is ExtensionTypeDeclaration) {
+      if (!_isPrivateName(declaration.name.lexeme)) return null;
+      if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+      return _Candidate(
+        nameToken: declaration.name,
+        // ignore: experimental_member_use
+        element: declaration.declaredElement,
+        kindLabel: 'extension type',
+      );
+    }
+    return null;
+  }
+
+  bool _isPrivateName(String name) => name.startsWith('_');
+
+  Diagnostic _buildDiagnostic({
+    required _Candidate candidate,
+    required String filePath,
+    required LineInfo lineInfo,
+  }) {
+    final nameToken = candidate.nameToken;
+    final name = nameToken.lexeme;
+    final offset = nameToken.offset;
+    final length = nameToken.length;
+    final location = lineInfo.getLocation(offset);
+    return Diagnostic(
+      ruleId: 'unused_class',
+      message: 'The ${candidate.kindLabel} "$name" is declared but never used.',
+      severity: Severity.warning,
+      location: SourceLocation(
+        filePath: filePath,
+        offset: offset,
+        length: length,
+        line: location.lineNumber,
+        column: location.columnNumber,
+      ),
+      correction: 'Remove "$name" or reference it.',
+    );
+  }
+}
+
+bool _hasVmEntryPointPragma(NodeList<Annotation> metadata) {
+  for (final annotation in metadata) {
+    final identifier = annotation.name;
+    final simpleName = identifier is SimpleIdentifier
+        ? identifier.name
+        : identifier is PrefixedIdentifier
+        ? identifier.identifier.name
+        : '';
+    if (simpleName != 'pragma') continue;
+    final arguments = annotation.arguments;
+    if (arguments == null || arguments.arguments.isEmpty) continue;
+    final first = arguments.arguments.first;
+    if (first is StringLiteral && first.stringValue == 'vm:entry-point') {
+      return true;
+    }
+  }
+  return false;
+}
+
+class _Candidate {
+  final Token nameToken;
+  final Element? element;
+  final String kindLabel;
+
+  const _Candidate({
+    required this.nameToken,
+    required this.element,
+    required this.kindLabel,
+  });
+}
+
+class _ReferenceCollector extends RecursiveAstVisitor<void> {
+  final Set<Element> sink;
+
+  _ReferenceCollector(this.sink);
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    final element = node.staticElement;
+    if (element != null) sink.add(element);
+    super.visitSimpleIdentifier(node);
+  }
+
+  @override
+  void visitNamedType(NamedType node) {
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitNamedType(node);
+  }
+}

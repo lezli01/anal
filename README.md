@@ -97,6 +97,34 @@ Deliberately not flagged in this release:
 - functions annotated with `@pragma('vm:entry-point')`;
 - files belonging to libraries that have `part` files.
 
+### `unused_class`
+
+- **Id:** `unused_class`
+- **Default severity:** `warning`
+
+Flags file-local declarations whose names begin with `_` that are never
+referenced within the same compilation unit:
+
+- `class` declarations (including `abstract`, `base`, `final`, `sealed`,
+  and `interface` modifiers);
+- `mixin` declarations;
+- `enum` declarations;
+- `extension type` declarations.
+
+Any reference to the declaration counts as a use, including type
+annotations, constructor invocations, `extends`/`implements`/`with`/`on`
+clauses, `is`/`as` checks, static-member access, enum-value access, and
+constructor or static tear-offs.
+
+Deliberately not flagged in this release:
+
+- public top-level classes, mixins, enums, and extension types;
+- `class _Foo = A with B;` typedef-style class declarations
+  (`ClassTypeAlias`);
+- `extension` declarations (the non-type `extension _Ext on T {}` form);
+- declarations annotated with `@pragma('vm:entry-point')`;
+- files belonging to libraries that have `part` files.
+
 ## Custom Rules
 
 Implement `AnalyzerRule`, register it with a `RuleRegistry`, and pass the

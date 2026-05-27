@@ -4,6 +4,7 @@ import 'package:anal/src/anal_options.dart';
 import 'package:anal/src/analysis_runner.dart';
 import 'package:anal/src/reporter.dart';
 import 'package:anal/src/rule_registry.dart';
+import 'package:anal/src/rules/unused_class_rule.dart';
 import 'package:anal/src/rules/unused_function_rule.dart';
 import 'package:anal/src/severity.dart';
 import 'package:args/args.dart';
@@ -38,6 +39,7 @@ Future<void> main(List<String> arguments) async {
 
   final registry = RuleRegistry();
   registry.register(UnusedFunctionRule());
+  registry.register(UnusedClassRule());
 
   final runner = AnalysisRunner(registry: registry, options: options);
   final diagnostics = await runner.run();

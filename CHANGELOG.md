@@ -17,6 +17,16 @@
   at `Severity.warning`. The rule is registered by the built-in CLI and enabled
   automatically. Running `dart run anal` against a project that previously
   produced no diagnostics may now surface new warnings from this rule.
+- New default-on `unused_class` rule. It flags file-local declarations
+  that are never referenced within the same compilation unit, covering
+  `class`, `mixin`, `enum`, and `extension type` declarations whose names
+  begin with `_`. The rule only runs against libraries that have no
+  `part` files and skips declarations annotated with
+  `@pragma('vm:entry-point')`. Diagnostics are emitted at
+  `Severity.warning`. The rule is registered by the built-in CLI and
+  enabled automatically. Running `dart run anal` against a project that
+  previously produced no diagnostics may now surface new warnings from
+  this rule.
 - Open-source project guidance, issue templates, pull request checklist,
   security policy, code of conduct, and Dependabot configuration.
 - Coverage artifact upload to CI.
