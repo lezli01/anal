@@ -66,6 +66,12 @@
 - `anal` is now installable alongside `freezed ^3.2.5`.
 - `dart run anal --version` now prints the correct package version
   (`0.2.0`) instead of the stale hardcoded `0.1.0`.
+- Restored analyzer 9.0.0 compatibility for the `unused_class` rule.
+  The rule previously reached into `ExtensionTypeDeclaration.primaryConstructor`,
+  which only exists in analyzer 10+, causing a build break for consumers
+  pinned to analyzer 9.0.0 (`'primaryConstructor' isn't defined for the type
+  'ExtensionTypeDeclaration'`). The rule now uses the cross-version
+  `ExtensionTypeDeclaration.name` accessor.
 
 ### Changed
 
@@ -75,6 +81,13 @@
 - `--exclude` now layers on top of the default excludes instead of
   replacing them. Patterns you pass are added to the built-in defaults;
   use `--no-default-excludes` if you need to suppress the defaults.
+
+## [0.3.1](https://github.com/lezli01/anal/compare/v0.3.0...v0.3.1) (2026-05-27)
+
+
+### Continuous Integration
+
+* **release:** wire bin/anal.dart into release-please and trigger 0.3.1 ([e544060](https://github.com/lezli01/anal/commit/e5440600d4531b193e30faa28c85c681d8b98c04))
 
 ## [0.3.0](https://github.com/lezli01/anal/compare/v0.2.0...v0.3.0) (2026-05-27)
 
