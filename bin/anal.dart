@@ -73,9 +73,19 @@ ArgParser _buildArgParser() {
       'exclude',
       help:
           'Glob pattern to exclude from analysis. '
-          'May be passed multiple times.',
+          'May be passed multiple times. '
+          'Layered on top of the built-in default excludes unless '
+          '--no-default-excludes is given.',
       valueHelp: 'glob',
       splitCommas: false,
+    )
+    ..addFlag(
+      'default-excludes',
+      defaultsTo: true,
+      negatable: true,
+      help:
+          'Apply the built-in exclude patterns (*.g.dart, *.freezed.dart). '
+          'Use --no-default-excludes to opt out.',
     );
 }
 
@@ -83,6 +93,7 @@ AnalOptions _buildOptions(ArgResults parsed) {
   final paths = parsed.rest;
   final excludes = parsed['exclude'] as List<String>;
   final rulesArg = parsed['rules'] as String?;
+  final useDefaults = parsed['default-excludes'] as bool;
 
   const defaults = AnalOptions.defaults();
 
@@ -90,7 +101,10 @@ AnalOptions _buildOptions(ArgResults parsed) {
       ? defaults.includePaths
       : List<String>.unmodifiable(paths);
 
-  final excludePaths = List<String>.unmodifiable(excludes);
+  final excludePaths = List<String>.unmodifiable([
+    if (useDefaults) ...AnalOptions.defaultExcludePaths,
+    ...excludes,
+  ]);
 
   final Set<String> enabledRuleIds;
   if (rulesArg == null || rulesArg.isEmpty) {
