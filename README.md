@@ -5,8 +5,8 @@ provides the contracts, registry, runner, and CLI that custom analyzer rules
 plug into — so you can implement project-specific checks as plain Dart classes
 without writing an analyzer plugin from scratch.
 
-This release ships the **frame only**: the extension points and end-to-end
-plumbing. Concrete built-in rules (unused declaration detection, `const`
+This release ships the frame **plus the first built-in rule, `unused_function`**.
+Additional built-in rules (broader unused-declaration detection, `const`
 suggestions, and friends) will land in future versions.
 
 ## Status / Stability
@@ -64,6 +64,36 @@ Exit codes:
 - `1` — at least one `Severity.error` diagnostic was emitted.
 - `64` — usage error (bad flags).
 
+### Built-in rules
+
+`anal` ships with the following rules enabled by default. To turn one off,
+pass `--rules` with a list that omits it (for example, once other rules
+exist, `--rules other_rule` will run everything except `unused_function`).
+
+#### `unused_function`
+
+- **Id:** `unused_function`
+- **Default severity:** `warning`
+
+Flags file-local function declarations that are never referenced:
+
+- top-level **private** functions (names beginning with `_`) in libraries
+  that have no `part` files, and
+- **local function declarations** (functions declared inside another
+  function or method body)
+
+that are never referenced in the same file. Both direct calls (`_foo()`)
+and tear-offs (`_foo`) count as a use.
+
+Deliberately **not** flagged in this release:
+
+- public top-level functions (cannot be judged without cross-file analysis),
+- the library's `main` function,
+- methods, constructors, getters, setters, and operators,
+- `external` functions,
+- functions annotated with `@pragma('vm:entry-point')`,
+- files belonging to libraries that have `part` files.
+
 ## Extending with custom rules (advanced / programmatic API)
 
 Implement `AnalyzerRule`, register it with a `RuleRegistry`, and hand the
@@ -104,7 +134,6 @@ the frame today.
 
 ## Roadmap
 
-- Unused function detection.
 - Unused class detection.
 - `var` → `const` suggestions where applicable.
 - More rules coming.
