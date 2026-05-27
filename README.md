@@ -50,6 +50,18 @@ Options:
 - `--version`: print the package version and exit.
 - `--rules <id,id,...>`: run only the listed rule ids.
 - `--exclude <glob>`: exclude matching paths. Repeat for multiple patterns.
+  Custom excludes are added on top of the built-in defaults.
+- `--no-default-excludes`: disable the built-in default exclude patterns.
+  Use `--exclude` to list any patterns you still want excluded.
+
+By default, `anal` excludes generated files matching `*.g.dart` and
+`*.freezed.dart`. Exclude patterns are matched against the file's basename,
+its path relative to the current working directory, and its absolute path
+and any match excludes the file. To opt out of the defaults entirely:
+
+```sh
+dart run anal --no-default-excludes
+```
 
 Exit codes:
 

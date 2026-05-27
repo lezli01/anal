@@ -21,6 +21,19 @@ class AnalOptions {
   /// default opt-in-everything behavior, not an opt-out-of-everything one.
   final Set<String> enabledRuleIds;
 
+  /// Glob patterns excluded by [AnalOptions.defaults].
+  ///
+  /// Currently: `*.g.dart` and `*.freezed.dart` — generated files that
+  /// consumer projects almost never want to lint.
+  ///
+  /// Patterns are matched against the file's basename, its path relative
+  /// to the current working directory, and its absolute path (any match
+  /// excludes the file).
+  static const List<String> defaultExcludePaths = <String>[
+    '*.g.dart',
+    '*.freezed.dart',
+  ];
+
   /// Creates an [AnalOptions] with explicit values for every field.
   const AnalOptions({
     required this.includePaths,
@@ -31,11 +44,13 @@ class AnalOptions {
   /// Creates an [AnalOptions] with sensible defaults for a typical Dart or
   /// Flutter package.
   ///
-  /// Analyzes `lib/`, `bin/`, and `test/`, excludes nothing, and enables
-  /// every registered rule (via an empty [enabledRuleIds]).
+  /// Analyzes `lib/`, `bin/`, and `test/`, excludes the patterns listed in
+  /// [defaultExcludePaths] (generated files such as `*.g.dart` and
+  /// `*.freezed.dart`), and enables every registered rule (via an empty
+  /// [enabledRuleIds]).
   const AnalOptions.defaults()
     : includePaths = const ['lib/', 'bin/', 'test/'],
-      excludePaths = const [],
+      excludePaths = defaultExcludePaths,
       enabledRuleIds = const <String>{};
 
   @override

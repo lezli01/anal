@@ -4,6 +4,12 @@
 
 ### Added
 
+- New `--no-default-excludes` CLI flag that opts out of the built-in
+  default exclude patterns. Pair it with explicit `--exclude` flags when
+  you want full control over which paths are skipped.
+- New `AnalOptions.defaultExcludePaths` constant exposing the list of
+  glob patterns excluded by `AnalOptions.defaults()`. Useful when
+  composing custom `AnalOptions` instances programmatically.
 - New default-on `unused_function` rule. It flags file-local function
   declarations that are never referenced, specifically private top-level
   functions in libraries that have no `part` files and local function
@@ -26,6 +32,15 @@
 ### Fixed
 
 - Fixed directory include discovery on Windows.
+
+### Changed
+
+- Default exclude patterns now include `*.g.dart` and `*.freezed.dart`.
+  Pass an empty `excludePaths` (or `--no-default-excludes` on the CLI)
+  to opt out.
+- `--exclude` now layers on top of the default excludes instead of
+  replacing them. Patterns you pass are added to the built-in defaults;
+  use `--no-default-excludes` if you need to suppress the defaults.
 
 ## 0.1.0
 
