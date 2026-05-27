@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.4](https://github.com/lezli01/anal/compare/v0.3.3...v0.3.4) (2026-05-27)
+
+
+### Features
+
+* sample projects ([#17](https://github.com/lezli01/anal/issues/17)) ([f120a92](https://github.com/lezli01/anal/commit/f120a9202eaff9ba57670cf5011560a27f71844d))
+* **samples:** add unused_source_file sample project ([af01ba7](https://github.com/lezli01/anal/commit/af01ba7b58df7aeb4a8158ff2b4d79f5d35effee))
+* unused functions ([#20](https://github.com/lezli01/anal/issues/20)) ([9f79e99](https://github.com/lezli01/anal/commit/9f79e99d63d30dd66eb2c153ba803d4a98d2a781))
+* **unused_function:** add collector for class, mixin, enum, and extension-type members ([c5574f2](https://github.com/lezli01/anal/commit/c5574f2cc28a19de806deb0285987667fd5ba974))
+* **unused_function:** add collector for extension declaration members ([ffa728a](https://github.com/lezli01/anal/commit/ffa728a11b4060ddad51278d9e5c4a532a56827f))
+* **unused_function:** add collector for top-level getters and setters ([3d4d3e7](https://github.com/lezli01/anal/commit/3d4d3e7684c7f1836694213d3baddd6c751e8679))
+* **unused_function:** flag unreferenced public top-level functions in lib/src/ ([07703ce](https://github.com/lezli01/anal/commit/07703ce73bc72073b9c0440e2b0f8934ff5748f9))
+
+
+### Bug Fixes
+
+* analysis ([ff4cf8c](https://github.com/lezli01/anal/commit/ff4cf8c83bd4078e4e5d5d56d1278f32e206ff55))
+
 ## [0.3.3](https://github.com/lezli01/anal/compare/v0.3.2...v0.3.3) (2026-05-27)
 
 
