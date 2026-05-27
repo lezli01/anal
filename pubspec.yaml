@@ -1,15 +1,23 @@
 name: anal
-description: "A new Flutter package project."
-version: 0.0.1
+description: "A pluggable static analysis frame for Dart and Flutter projects, providing an extensible runner, rule registry, and CLI for custom analyzer rules."
+version: 0.1.0
 homepage:
+repository:
 
 environment:
   sdk: ^3.11.5
   flutter: ">=1.17.0"
 
+executables:
+  anal: anal
+
 dependencies:
   flutter:
     sdk: flutter
+  analyzer: ^6.4.0
+  path: ^1.9.0
+  glob: ^2.1.2
+  args: ^2.5.0
 
 dev_dependencies:
   flutter_test:
