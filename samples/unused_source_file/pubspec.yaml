@@ -1,0 +1,16 @@
+name: unused_source_file_sample
+description: >-
+  Sample project that exercises the `unused_source_file` multi-file rule from
+  the `anal` static-analysis package. Not published to pub.dev.
+publish_to: none
+version: 0.0.0
+
+environment:
+  sdk: ^3.11.5
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  anal:
+    path: ../..
