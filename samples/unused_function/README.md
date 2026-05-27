@@ -13,7 +13,12 @@ running against a real `pub get`-resolved project.
 ```
 samples/unused_function/
   pubspec.yaml                       # path-dependent on the root `anal` package
-  lib/unused_function_sample.dart    # all positive + negative cases live here
+  lib/unused_function_sample.dart    # entry point; covers every flagged kind
+                                     # except the public top-level function case
+  lib/src/internals.dart             # public-but-unreferenced top-level function
+                                     # (`lib/src/` is the package's internal
+                                     # surface, so public declarations there
+                                     # are candidates)
 ```
 
 ## Run it
@@ -27,31 +32,68 @@ fvm dart run anal samples/unused_function/lib
 
 ## Expected output
 
-Exactly two `unused_function` diagnostics — and nothing else:
+Thirteen `unused_function` diagnostics — and nothing else:
 
 ```
-samples/unused_function/lib/unused_function_sample.dart:18:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:48:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_function: The top-level function "unusedPublicTopLevel" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:26:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:29:9 • [warning] unused_function: The top-level function "_unusedTopLevelGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:29:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:32:5 • [warning] unused_function: The top-level function "_unusedTopLevelSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:32:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:86:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:89:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:92:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:95:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:98:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:105:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:121:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
 ```
 
-(Line / column numbers refer to `lib/unused_function_sample.dart`.)
+(Line / column numbers refer to the file named in each line.)
+
+The top-level getter (`_unusedTopLevelGetter`) and top-level setter
+(`_unusedTopLevelSetter`) each currently produce two diagnostics — one
+labelled `top-level function` (emitted by the top-level function
+collector, which does not yet filter out accessor `FunctionDeclaration`s)
+and one labelled `top-level getter` / `top-level setter` (emitted by the
+accessor collector). Both anchor at the same source location.
 
 ### Positive cases (MUST be flagged)
 
-| Tag  | Where                                | Why it triggers                                            |
-| ---- | ------------------------------------ | ---------------------------------------------------------- |
-| `P1` | top-level `_unusedPrivateTopLevel`   | Private top-level function with no reference in the unit.  |
-| `P2` | local `unusedLocal` inside `doWork`  | Local function with no reference in its enclosing body.    |
+| Tag   | Where                                       | Why it triggers                                                                       |
+| ----- | ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `P1`  | top-level `_unusedPrivateTopLevel`          | Private top-level function with no reference in the analyzed set.                     |
+| `P2`  | top-level getter `_unusedTopLevelGetter`    | Private top-level getter that is never read. (See note above re: the duplicate label.) |
+| `P3`  | top-level setter `_unusedTopLevelSetter`    | Private top-level setter that is never written. (See note above re: the duplicate label.) |
+| `P4`  | `Service._unusedPrivateMethod`              | Private instance method with no reference anywhere.                                   |
+| `P5`  | `Service.unusedStaticMethod`                | Static method with no reference anywhere.                                             |
+| `P6`  | `Service.unusedGetter`                      | Instance getter that is never read.                                                   |
+| `P7`  | `Service.unusedSetter`                      | Instance setter that is never written.                                                |
+| `P8`  | `Service.operator -`                        | Operator that is never invoked.                                                       |
+| `P9`  | local `unusedLocal` inside `Service.usedMethod` | Local function with no reference in its enclosing body.                           |
+| `P10` | `StringX.unusedExtension`                   | Method on a public extension that is never invoked.                                   |
+| `P11` | `unusedPublicTopLevel` in `lib/src/internals.dart` | Public top-level function in `lib/src/`. Files under `lib/src/` are the package's internal surface, so public top-level declarations there are candidates. |
 
 ### Negative cases (MUST NOT be flagged)
 
 | Tag  | Where                                | Why the rule skips it                                                                 |
 | ---- | ------------------------------------ | ------------------------------------------------------------------------------------- |
-| `N1` | `publicTopLevel`                     | Public name — top-level candidates must start with `_`.                               |
+| `N1` | `publicTopLevel`                     | Public top-level function in a file directly under `lib/` — part of the package's public surface, reachable from outside the analyzed set. |
 | `N2` | `main`                               | The `main` entry point is exempt by name.                                             |
 | `N3` | `_usedPrivate`                       | Referenced as both a direct call and a tear-off in `main`.                            |
 | `N4` | `external _externalPrivate`          | `external` top-level functions are exempt regardless of name.                         |
 | `N5` | `@pragma('vm:entry-point')` private  | `@pragma('vm:entry-point')` annotated declarations are exempt regardless of name.     |
 
-A used local function (`usedLocal` inside `Service.doWork`) is also included
-so the negative side of the local-function path is exercised.
+Each positive case has a used twin that exercises the rule's negative
+path for the same kind:
+
+- `_usedPrivate` (top-level function) — called and torn off from `main`.
+- `_usedTopLevelGetter` / `_usedTopLevelSetter` — read / written from `main`.
+- `Service.usedMethod`, `Service.usedStaticMethod`, `Service.usedGetter`,
+  `Service.usedSetter`, and `Service.operator +` — all referenced from
+  `main`.
+- `usedLocal` inside `Service.usedMethod` — invoked in its enclosing
+  body.
+- `StringX.usedExtension` — invoked from `main`.
+- `usedPublicTopLevel` in `lib/src/internals.dart` — invoked from `main`.

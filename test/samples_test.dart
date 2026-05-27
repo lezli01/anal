@@ -14,9 +14,25 @@ import 'package:path/path.dart' as p;
 /// This fixture doubles as a machine-checked summary of each sample's
 /// README "Expected diagnostics" section — keep them in sync.
 const Map<String, List<(String, String)>> _expectedDiagnostics = {
-  // samples/unused_function: README documents exactly two unused_function
-  // diagnostics in lib/unused_function_sample.dart (P1 + P2).
+  // samples/unused_function: README documents thirteen unused_function
+  // diagnostics — one in lib/src/internals.dart (P11) and twelve in
+  // lib/unused_function_sample.dart (P1..P10, with P2 and P3 each
+  // currently emitting two diagnostics: one labelled `top-level function`
+  // by the top-level function collector and one labelled
+  // `top-level getter` / `top-level setter` by the accessor collector,
+  // both anchored at the same source location).
   'unused_function': [
+    ('unused_function', 'lib/src/internals.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
   ],
