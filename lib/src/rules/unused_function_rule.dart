@@ -10,10 +10,12 @@ import '../multi_file_analysis_context.dart';
 import '../multi_file_analyzer_rule.dart';
 import '../severity.dart';
 import '../source_location.dart';
+import 'entry_point_classifier.dart';
 
 part 'unused_function/candidate_collector.dart';
 part 'unused_function/extension_member_collector.dart';
 part 'unused_function/local_function_collector.dart';
+part 'unused_function/public_top_level_collector.dart';
 part 'unused_function/top_level_private_collector.dart';
 
 /// Flags function declarations that are never referenced across the
@@ -78,6 +80,7 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
 
     const collectors = <_UnusedFunctionCandidateCollector>[
       _TopLevelPrivateCollector(),
+      _PublicTopLevelCollector(),
       _LocalFunctionCollector(),
       _ExtensionMemberCollector(),
     ];
