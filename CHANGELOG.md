@@ -82,6 +82,13 @@
   replacing them. Patterns you pass are added to the built-in defaults;
   use `--no-default-excludes` if you need to suppress the defaults.
 
+## [0.3.1](https://github.com/lezli01/anal/compare/v0.3.0...v0.3.1) (2026-05-27)
+
+
+### Continuous Integration
+
+* **release:** wire bin/anal.dart into release-please and trigger 0.3.1 ([e544060](https://github.com/lezli01/anal/commit/e5440600d4531b193e30faa28c85c681d8b98c04))
+
 ## [0.3.0](https://github.com/lezli01/anal/compare/v0.2.0...v0.3.0) (2026-05-27)
 
 
