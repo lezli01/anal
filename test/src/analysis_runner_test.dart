@@ -5,6 +5,8 @@ import 'package:anal/src/analysis_context.dart';
 import 'package:anal/src/analysis_runner.dart';
 import 'package:anal/src/analyzer_rule.dart';
 import 'package:anal/src/diagnostic.dart';
+import 'package:anal/src/multi_file_analysis_context.dart';
+import 'package:anal/src/multi_file_analyzer_rule.dart';
 import 'package:anal/src/rule_registry.dart';
 import 'package:anal/src/severity.dart';
 import 'package:anal/src/source_location.dart';
@@ -37,6 +39,69 @@ class _AlwaysFiresRule implements AnalyzerRule {
         ),
       ),
     ];
+  }
+}
+
+class _OrderTrackingRule implements AnalyzerRule {
+  _OrderTrackingRule(this.callLog);
+
+  final List<String> callLog;
+
+  @override
+  String get id => 'order_tracking';
+
+  @override
+  String get description => 'Records when single-file analyze is invoked.';
+
+  @override
+  Severity get defaultSeverity => Severity.info;
+
+  @override
+  Iterable<Diagnostic> analyze(AnalysisContext context) {
+    callLog.add('single:${context.filePath}');
+    return const <Diagnostic>[];
+  }
+}
+
+class _CapturingMultiFileRule implements MultiFileAnalyzerRule {
+  _CapturingMultiFileRule({this.callLog});
+
+  final List<String>? callLog;
+
+  MultiFileAnalysisContext? lastContext;
+  int callCount = 0;
+
+  @override
+  String get id => 'capturing_multi';
+
+  @override
+  String get description => 'Records the context it received.';
+
+  @override
+  Severity get defaultSeverity => Severity.info;
+
+  @override
+  Iterable<Diagnostic> analyze(MultiFileAnalysisContext context) {
+    callCount += 1;
+    lastContext = context;
+    callLog?.add('multi:${context.analyzedFilePaths.length}');
+    return const <Diagnostic>[];
+  }
+}
+
+class _ThrowingMultiFileRule implements MultiFileAnalyzerRule {
+  @override
+  String get id => 'throwing_multi';
+
+  @override
+  String get description => 'Always throws when analyze is called.';
+
+  @override
+  Severity get defaultSeverity => Severity.warning;
+
+  @override
+  Iterable<Diagnostic> analyze(MultiFileAnalysisContext context) {
+    throw StateError('boom');
   }
 }
 
@@ -189,5 +254,118 @@ void main() {
         p.normalize(p.absolute(freezed.path)),
       });
     });
+  });
+
+  group('AnalysisRunner multi-file dispatch', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('anal_runner_multi_');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    String writeFile(String name, [String contents = 'void main() {}\n']) {
+      final file = File(p.join(tempDir.path, name));
+      file.writeAsStringSync(contents);
+      return p.normalize(p.absolute(file.path));
+    }
+
+    test('multi-file rule sees every analyzed file', () async {
+      final a = writeFile('a.dart');
+      final b = writeFile('b.dart');
+      final c = writeFile('c.dart');
+      final multi = _CapturingMultiFileRule();
+      final registry = RuleRegistry()..registerMultiFile(multi);
+      final runner = AnalysisRunner(
+        registry: registry,
+        options: AnalOptions(
+          includePaths: [tempDir.path],
+          excludePaths: const [],
+          enabledRuleIds: const <String>{},
+        ),
+      );
+
+      final diagnostics = await runner.run();
+
+      expect(diagnostics, isEmpty);
+      expect(multi.callCount, 1);
+      expect(multi.lastContext, isNotNull);
+      expect(multi.lastContext!.analyzedFilePaths, <String>{a, b, c});
+      expect(
+        multi.lastContext!.units.map((unit) => unit.path).toSet(),
+        <String>{a, b, c},
+      );
+    });
+
+    test('multi-file rules run after single-file ones', () async {
+      final a = writeFile('a.dart');
+      final b = writeFile('b.dart');
+      final callLog = <String>[];
+      final registry = RuleRegistry()
+        ..register(_OrderTrackingRule(callLog))
+        ..registerMultiFile(_CapturingMultiFileRule(callLog: callLog));
+      final runner = AnalysisRunner(
+        registry: registry,
+        options: AnalOptions(
+          includePaths: [tempDir.path],
+          excludePaths: const [],
+          enabledRuleIds: const <String>{},
+        ),
+      );
+
+      await runner.run();
+
+      expect(callLog, <String>['single:$a', 'single:$b', 'multi:2']);
+    });
+
+    test('empty file list still skips multi-file dispatch cleanly', () async {
+      final multi = _CapturingMultiFileRule();
+      final registry = RuleRegistry()..registerMultiFile(multi);
+      final runner = AnalysisRunner(
+        registry: registry,
+        options: AnalOptions(
+          includePaths: [tempDir.path],
+          excludePaths: const [],
+          enabledRuleIds: const <String>{},
+        ),
+      );
+
+      final diagnostics = await runner.run();
+
+      expect(diagnostics, isEmpty);
+      expect(multi.callCount, 0);
+      expect(multi.lastContext, isNull);
+    });
+
+    test(
+      'throwing multi-file rule produces an _internal error diagnostic',
+      () async {
+        writeFile('a.dart');
+        final registry = RuleRegistry()
+          ..registerMultiFile(_ThrowingMultiFileRule());
+        final runner = AnalysisRunner(
+          registry: registry,
+          options: AnalOptions(
+            includePaths: [tempDir.path],
+            excludePaths: const [],
+            enabledRuleIds: const <String>{},
+          ),
+        );
+
+        final diagnostics = await runner.run();
+
+        expect(diagnostics, hasLength(1));
+        final diagnostic = diagnostics.single;
+        expect(diagnostic.ruleId, '_internal');
+        expect(diagnostic.severity, Severity.error);
+        expect(diagnostic.message, contains('throwing_multi'));
+        expect(diagnostic.message, contains('boom'));
+      },
+    );
   });
 }

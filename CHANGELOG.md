@@ -4,6 +4,25 @@
 
 ### Added
 
+- New default-on `unused_source_file` rule. It flags Dart source files in
+  the analyzed set that are never reached from any entry point via an
+  `import`, `export`, or `part` directive. Entry points are files under
+  `bin/` or `test/`, files that declare a top-level `main`, and
+  `lib/<package>.dart` plus any other file sitting directly under
+  `lib/` (i.e. not nested inside `lib/src/`). Generated-file basenames
+  such as `*.g.dart` and `*.freezed.dart` are skipped defensively even
+  when the runner's default excludes are turned off. Diagnostics are
+  emitted at `Severity.warning`. The rule is registered by the built-in
+  CLI and enabled automatically. Running `dart run anal` against a
+  project that previously produced no diagnostics may now surface new
+  warnings from this rule.
+- New `MultiFileAnalyzerRule` extension point for custom rules that need
+  to reason across multiple files in a single invocation (for example to
+  build an import graph or a cross-file symbol index). Multi-file rules
+  are registered with the same `RuleRegistry` as `AnalyzerRule`
+  implementations and are dispatched once per run with the full set of
+  resolved compilation units. Existing `AnalyzerRule` implementations
+  continue to be dispatched once per file and do not need any changes.
 - New `--no-default-excludes` CLI flag that opts out of the built-in
   default exclude patterns. Pair it with explicit `--exclude` flags when
   you want full control over which paths are skipped.

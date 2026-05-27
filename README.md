@@ -125,6 +125,40 @@ Deliberately not flagged in this release:
 - declarations annotated with `@pragma('vm:entry-point')`;
 - files belonging to libraries that have `part` files.
 
+### `unused_source_file`
+
+- **Id:** `unused_source_file`
+- **Default severity:** `warning`
+
+A cross-file rule that flags Dart source files in the analyzed set that
+are never reached from any entry point. Reachability is computed by
+walking `import`, `export`, and `part` directives whose resolved URI
+lands inside the analyzed set; URIs that resolve to `dart:` libraries,
+package dependencies, or files excluded from the run are ignored.
+
+Entry points (always considered "reached") are:
+
+- files under `bin/`;
+- files under `test/`;
+- files that declare a top-level `main` function;
+- `lib/<package>.dart` and any other file sitting directly under `lib/`
+  (i.e. not nested inside a subdirectory such as `lib/src/`), which
+  together form the package's public surface.
+
+A non-entry-point file counts as "used" if it is reachable, directly or
+transitively, from an entry point via an `import`, `export`, or `part`
+directive.
+
+Deliberately not flagged in this release:
+
+- entry-point files themselves (files under `bin/` or `test/`, files
+  with a top-level `main`, and `lib/*.dart` files outside `lib/src/`);
+- any file reached, directly or transitively, by an `import`, `export`,
+  or `part` directive from an entry point;
+- generated-file basenames such as `*.g.dart` and `*.freezed.dart`,
+  which are skipped defensively even if the runner's default excludes
+  are turned off.
+
 ## Custom Rules
 
 Implement `AnalyzerRule`, register it with a `RuleRegistry`, and pass the
@@ -161,8 +195,17 @@ Future<void> main() async {
 }
 ```
 
-Rules are dispatched once per file. Cross-file analysis is intentionally out
-of scope for the current rule API.
+`AnalyzerRule` is dispatched once per file and remains the right contract
+for file-local checks: implementations see a single resolved compilation
+unit at a time and cannot observe sibling files.
+
+For checks that must reason across files, implement `MultiFileAnalyzerRule`
+instead. A multi-file rule is invoked once per run with the full set of
+resolved compilation units, so it can build cross-file structures such as
+import graphs or symbol indices. Register multi-file rules with the same
+`RuleRegistry` used for `AnalyzerRule` implementations; the built-in
+`unused_source_file` rule is implemented this way. Existing `AnalyzerRule`
+implementations continue to work unchanged.
 
 ## Development
 

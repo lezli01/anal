@@ -10,6 +10,8 @@ import 'anal_options.dart';
 import 'analysis_context.dart';
 import 'analyzer_rule.dart';
 import 'diagnostic.dart';
+import 'multi_file_analysis_context.dart';
+import 'multi_file_analyzer_rule.dart';
 import 'rule_registry.dart';
 import 'severity.dart';
 import 'source_location.dart';
@@ -50,11 +52,17 @@ class AnalysisRunner {
         if (enabled.isEmpty || enabled.contains(rule.id)) rule,
     ];
 
+    final multiFileRules = <MultiFileAnalyzerRule>[
+      for (final rule in registry.multiFileRules)
+        if (enabled.isEmpty || enabled.contains(rule.id)) rule,
+    ];
+
     final collection = AnalysisContextCollection(
       includedPaths: files,
       sdkPath: _resolveSdkPath(),
     );
     final diagnostics = <Diagnostic>[];
+    final resolvedUnits = <ResolvedUnitResult>[];
 
     for (final file in files) {
       try {
@@ -69,6 +77,7 @@ class AnalysisRunner {
           );
           continue;
         }
+        resolvedUnits.add(unitResult);
         final ruleContext = AnalysisContext(unit: unitResult, filePath: file);
         for (final rule in rules) {
           try {
@@ -84,6 +93,27 @@ class AnalysisRunner {
         }
       } on Object catch (error) {
         diagnostics.add(_internalError(file, 'Could not analyze file: $error'));
+      }
+    }
+
+    if (multiFileRules.isNotEmpty) {
+      final multiFileContext = MultiFileAnalysisContext(
+        units: resolvedUnits,
+        analyzedFilePaths: <String>{
+          for (final unit in resolvedUnits) unit.path,
+        },
+      );
+      for (final rule in multiFileRules) {
+        try {
+          diagnostics.addAll(rule.analyze(multiFileContext));
+        } on Object catch (error) {
+          diagnostics.add(
+            _internalError(
+              '',
+              'Multi-file rule "${rule.id}" threw during analysis: $error',
+            ),
+          );
+        }
       }
     }
 
