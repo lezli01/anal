@@ -30,6 +30,7 @@ class _TopLevelFunctionCollector implements _UnusedFunctionCandidateCollector {
     final fileDeclaresMain = _unitDeclaresMain(unit.unit);
     for (final declaration in unit.unit.declarations) {
       if (declaration is! FunctionDeclaration) continue;
+      if (declaration.isGetter || declaration.isSetter) continue;
       if (!_isTopLevelCandidate(
         declaration,
         unit.path,

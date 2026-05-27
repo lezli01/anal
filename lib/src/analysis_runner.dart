@@ -121,8 +121,9 @@ class AnalysisRunner {
   }
 
   List<String> _resolveFiles() {
-    final excludeGlobs = <Glob>[
-      for (final pattern in options.excludePaths) Glob(_toPosix(pattern)),
+    final excludeGlobs = <_ExcludeGlob>[
+      for (final pattern in options.excludePaths)
+        _ExcludeGlob(_toPosix(pattern)),
     ];
 
     final found = <String>{};
@@ -159,16 +160,16 @@ class AnalysisRunner {
     return filtered;
   }
 
-  bool _isExcluded(String file, List<Glob> globs) {
+  bool _isExcluded(String file, List<_ExcludeGlob> globs) {
     if (globs.isEmpty) return false;
     final candidates = <String>[
       _toPosix(p.basename(file)),
       _toPosix(p.relative(file, from: Directory.current.path)),
       _toPosix(file),
     ];
-    for (final glob in globs) {
+    for (final exclude in globs) {
       for (final candidate in candidates) {
-        if (glob.matches(candidate)) return true;
+        if (exclude.matches(candidate)) return true;
       }
     }
     return false;
@@ -218,5 +219,22 @@ class AnalysisRunner {
         column: 1,
       ),
     );
+  }
+}
+
+class _ExcludeGlob {
+  final String pattern;
+  final Glob glob;
+  final Glob? recursiveBasenameGlob;
+
+  _ExcludeGlob(this.pattern)
+    : glob = Glob(pattern),
+      recursiveBasenameGlob = pattern.startsWith('**/')
+          ? Glob(pattern.substring(3))
+          : null;
+
+  bool matches(String candidate) {
+    if (glob.matches(candidate)) return true;
+    return recursiveBasenameGlob?.matches(candidate) ?? false;
   }
 }

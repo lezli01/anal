@@ -32,14 +32,12 @@ fvm dart run anal samples/unused_function/lib
 
 ## Expected output
 
-Thirteen `unused_function` diagnostics — and nothing else:
+Eleven `unused_function` diagnostics — and nothing else:
 
 ```
 samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_function: The top-level function "unusedPublicTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:26:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:29:9 • [warning] unused_function: The top-level function "_unusedTopLevelGetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:29:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:32:5 • [warning] unused_function: The top-level function "_unusedTopLevelSetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:32:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:86:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:89:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
@@ -51,13 +49,6 @@ samples/unused_function/lib/unused_function_sample.dart:121:10 • [warning] unu
 ```
 
 (Line / column numbers refer to the file named in each line.)
-
-The top-level getter (`_unusedTopLevelGetter`) and top-level setter
-(`_unusedTopLevelSetter`) each currently produce two diagnostics — one
-labelled `top-level function` (emitted by the top-level function
-collector, which does not yet filter out accessor `FunctionDeclaration`s)
-and one labelled `top-level getter` / `top-level setter` (emitted by the
-accessor collector). Both anchor at the same source location.
 
 ### Positive cases (MUST be flagged)
 

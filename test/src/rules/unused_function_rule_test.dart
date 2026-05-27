@@ -154,7 +154,7 @@ void main() {
       expect(diagnostics, isEmpty);
     });
 
-    test('does not flag methods, getters, setters, or operators', () async {
+    test('reports unused methods, getters, setters, and operators', () async {
       final diagnostics = await runRule('''
 class C {
   void _method() {}
@@ -167,7 +167,12 @@ void main() {
   C();
 }
 ''');
-      expect(diagnostics, isEmpty);
+      expect(diagnostics, hasLength(5));
+      expect(diagnostics[0].message, contains('method "_method"'));
+      expect(diagnostics[1].message, contains('static method "_staticMethod"'));
+      expect(diagnostics[2].message, contains('getter "_value"'));
+      expect(diagnostics[3].message, contains('setter "_value"'));
+      expect(diagnostics[4].message, contains('operator "+"'));
     });
 
     test(
