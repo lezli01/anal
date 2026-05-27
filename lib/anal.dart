@@ -18,5 +18,6 @@ export 'src/reporter.dart';
 export 'src/rule_registry.dart';
 export 'src/rules/unused_function_rule.dart';
 export 'src/rules/unused_class_rule.dart';
+export 'src/rules/unused_source_file_rule.dart';
 export 'src/severity.dart';
 export 'src/source_location.dart';
