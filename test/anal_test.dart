@@ -34,4 +34,9 @@ void main() {
       expect(AnalyzerRule, AnalyzerRule);
     },
   );
+
+  test('UnusedFunctionRule is exported with the expected id and severity', () {
+    expect(const UnusedFunctionRule().id, 'unused_function');
+    expect(const UnusedFunctionRule().defaultSeverity, Severity.warning);
+  });
 }
