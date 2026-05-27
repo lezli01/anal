@@ -160,7 +160,7 @@ void main() {
     });
 
     test(
-      'does not flag methods, constructors, getters, setters, or operators',
+      'does not flag methods or constructors',
       () async {
         final diagnostics = await runRule('''
 class C {
@@ -168,9 +168,6 @@ class C {
   C.named();
   void _method() {}
   static void _staticMethod() {}
-  int get _value => 1;
-  set _value(int v) {}
-  C operator +(C other) => this;
 }
 void main() {}
 ''');

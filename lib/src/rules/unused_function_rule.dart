@@ -10,12 +10,12 @@ import '../multi_file_analysis_context.dart';
 import '../multi_file_analyzer_rule.dart';
 import '../severity.dart';
 import '../source_location.dart';
-import 'entry_point_classifier.dart';
 
+part 'unused_function/accessor_operator_collector.dart';
 part 'unused_function/candidate_collector.dart';
 part 'unused_function/extension_member_collector.dart';
 part 'unused_function/local_function_collector.dart';
-part 'unused_function/public_top_level_collector.dart';
+part 'unused_function/override_check.dart';
 part 'unused_function/top_level_private_collector.dart';
 
 /// Flags function declarations that are never referenced across the
@@ -27,7 +27,7 @@ part 'unused_function/top_level_private_collector.dart';
 /// collectors against each unit and emits one [Diagnostic] for every
 /// candidate whose declared [Element] does not appear in that index.
 ///
-/// Two kinds of declarations are inspected today, via dedicated
+/// Three kinds of declarations are inspected today, via dedicated
 /// collectors under `lib/src/rules/unused_function/`:
 ///
 /// * **Top-level private functions** (identifier begins with `_`).
@@ -38,21 +38,32 @@ part 'unused_function/top_level_private_collector.dart';
 ///   function or method body. References to a local can only appear in
 ///   the enclosing body, so the global reference index is a sound
 ///   superset for the same check.
+/// * **Getter, setter, and operator declarations** on `class` and
+///   `mixin` types. Each accessor kind resolves to a distinct
+///   [Element] in the analyzer's model, so a getter and a same-named
+///   setter are tracked independently. Accessors and operators that
+///   override or implement a supertype member are skipped via
+///   [_overridesSupertypeMember] — flagging an override would amount
+///   to telling the author "remove this override", which is never
+///   correct because the supertype dictates the API surface.
 ///
 /// A function is considered "used" if any of the following resolves
 /// (via the analyzer's element model) to its declared element anywhere
-/// in the analyzed set: a [SimpleIdentifier], a [NamedType], or a
-/// [ConstructorName] / [InstanceCreationExpression]. The constructor
-/// hooks ensure invocations such as `MyClass()` register the unnamed
-/// constructor element, which is shared infrastructure with future
-/// kinds — local and top-level functions themselves resolve through
-/// [SimpleIdentifier].
+/// in the analyzed set: a [SimpleIdentifier], a [NamedType], a
+/// [ConstructorName] / [InstanceCreationExpression], the
+/// `writeElement` / `readElement` of an [AssignmentExpression] (which
+/// is how the analyzer surfaces setter targets such as `obj.x = 1`),
+/// or the operator [Element] on a [BinaryExpression],
+/// [PrefixExpression], [PostfixExpression], or [IndexExpression]. The
+/// constructor hooks ensure invocations such as `MyClass()` register
+/// the unnamed constructor element, which is shared infrastructure
+/// with future kinds — local and top-level functions themselves
+/// resolve through [SimpleIdentifier].
 ///
 /// The rule deliberately ignores public top-level functions, methods,
-/// constructors, getters, setters, operators, the library's `main`
-/// entry point, `external` functions, and any function annotated with
-/// `@pragma('vm:entry-point')`. Override-awareness is delegated to
-/// per-kind collectors; the kinds shipped today do not require it.
+/// constructors, the library's `main` entry point, `external`
+/// functions, and any function annotated with
+/// `@pragma('vm:entry-point')`.
 class UnusedFunctionRule implements MultiFileAnalyzerRule {
   /// Creates an instance of the rule. Stateless and `const`-constructible.
   const UnusedFunctionRule();
@@ -80,9 +91,9 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
 
     const collectors = <_UnusedFunctionCandidateCollector>[
       _TopLevelPrivateCollector(),
-      _PublicTopLevelCollector(),
       _LocalFunctionCollector(),
       _ExtensionMemberCollector(),
+      _AccessorOperatorCollector(),
     ];
 
     final diagnostics = <Diagnostic>[];
@@ -171,5 +182,44 @@ class _ReferenceCollector extends RecursiveAstVisitor<void> {
     final element = node.constructorName.element;
     if (element != null) sink.add(element);
     super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitAssignmentExpression(AssignmentExpression node) {
+    final writeElement = node.writeElement;
+    if (writeElement != null) sink.add(writeElement);
+    final readElement = node.readElement;
+    if (readElement != null) sink.add(readElement);
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitAssignmentExpression(node);
+  }
+
+  @override
+  void visitBinaryExpression(BinaryExpression node) {
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitBinaryExpression(node);
+  }
+
+  @override
+  void visitPrefixExpression(PrefixExpression node) {
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitPrefixExpression(node);
+  }
+
+  @override
+  void visitPostfixExpression(PostfixExpression node) {
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitPostfixExpression(node);
+  }
+
+  @override
+  void visitIndexExpression(IndexExpression node) {
+    final element = node.element;
+    if (element != null) sink.add(element);
+    super.visitIndexExpression(node);
   }
 }

@@ -83,7 +83,10 @@ A cross-file rule that flags function declarations that are never referenced
 anywhere in the analyzed set of Dart files:
 
 - top-level private functions whose names begin with `_`;
-- local function declarations inside another function or method body.
+- local function declarations inside another function or method body;
+- getter, setter, and operator declarations on `class` and `mixin` types,
+  skipping any accessor or operator that overrides or implements a
+  supertype member.
 
 A single reference index is built once per run from every analyzed unit,
 so a private function used from a sibling `part` file, or in a different
@@ -96,7 +99,9 @@ Deliberately not flagged in this release:
 
 - public top-level functions;
 - the library's `main` function;
-- methods, constructors, getters, setters, and operators;
+- methods and constructors;
+- getters, setters, and operators that override or implement a supertype
+  member;
 - `external` functions;
 - functions annotated with `@pragma('vm:entry-point')`.
 
