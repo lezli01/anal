@@ -14,9 +14,19 @@ import 'package:path/path.dart' as p;
 /// This fixture doubles as a machine-checked summary of each sample's
 /// README "Expected diagnostics" section — keep them in sync.
 const Map<String, List<(String, String)>> _expectedDiagnostics = {
-  // samples/unused_function: README documents exactly two unused_function
-  // diagnostics in lib/unused_function_sample.dart (P1 + P2).
+  // samples/unused_function: README documents eleven unused_function
+  // diagnostics — one in lib/src/internals.dart (P11) and ten in
+  // lib/unused_function_sample.dart (P1..P10).
   'unused_function': [
+    ('unused_function', 'lib/src/internals.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
   ],
@@ -58,7 +68,7 @@ const Map<String, String> _samplePackageNames = {
 
 RuleRegistry _buildCliRegistry() {
   final registry = RuleRegistry();
-  registry.register(UnusedFunctionRule());
+  registry.registerMultiFile(UnusedFunctionRule());
   registry.register(UnusedClassRule());
   registry.registerMultiFile(UnusedSourceFileRule());
   return registry;

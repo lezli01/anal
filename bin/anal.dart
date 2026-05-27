@@ -39,7 +39,7 @@ Future<void> main(List<String> arguments) async {
   final options = _buildOptions(parsed);
 
   final registry = RuleRegistry();
-  registry.register(UnusedFunctionRule());
+  registry.registerMultiFile(UnusedFunctionRule());
   registry.register(UnusedClassRule());
   registry.registerMultiFile(UnusedSourceFileRule());
 

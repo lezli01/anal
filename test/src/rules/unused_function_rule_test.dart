@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:anal/src/analysis_context.dart';
 import 'package:anal/src/diagnostic.dart';
+import 'package:anal/src/multi_file_analysis_context.dart';
 import 'package:anal/src/rules/unused_function_rule.dart';
 import 'package:anal/src/severity.dart';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
@@ -31,16 +31,30 @@ void main() {
     }) async {
       final fixture = File(p.join(tempDir.path, fileName));
       fixture.writeAsStringSync(content);
-      final filePath = p.normalize(p.absolute(fixture.path));
+
+      final dartFiles = <String>[
+        for (final entity in tempDir.listSync(recursive: true))
+          if (entity is File && entity.path.endsWith('.dart'))
+            p.normalize(p.absolute(entity.path)),
+      ]..sort();
+
       final collection = AnalysisContextCollection(
-        includedPaths: [filePath],
+        includedPaths: dartFiles,
         sdkPath: _resolveSdkPath(),
       );
-      final session = collection.contextFor(filePath).currentSession;
-      final result = await session.getResolvedUnit(filePath);
-      expect(result, isA<ResolvedUnitResult>());
-      final resolved = result as ResolvedUnitResult;
-      final context = AnalysisContext(unit: resolved, filePath: filePath);
+
+      final units = <ResolvedUnitResult>[];
+      for (final path in dartFiles) {
+        final session = collection.contextFor(path).currentSession;
+        final result = await session.getResolvedUnit(path);
+        expect(result, isA<ResolvedUnitResult>());
+        units.add(result as ResolvedUnitResult);
+      }
+
+      final context = MultiFileAnalysisContext(
+        units: units,
+        analyzedFilePaths: <String>{for (final u in units) u.path},
+      );
       return const UnusedFunctionRule().analyze(context).toList();
     }
 
@@ -140,24 +154,26 @@ void main() {
       expect(diagnostics, isEmpty);
     });
 
-    test(
-      'does not flag methods, constructors, getters, setters, or operators',
-      () async {
-        final diagnostics = await runRule('''
+    test('reports unused methods, getters, setters, and operators', () async {
+      final diagnostics = await runRule('''
 class C {
-  C();
-  C.named();
   void _method() {}
   static void _staticMethod() {}
   int get _value => 1;
   set _value(int v) {}
   C operator +(C other) => this;
 }
-void main() {}
+void main() {
+  C();
+}
 ''');
-        expect(diagnostics, isEmpty);
-      },
-    );
+      expect(diagnostics, hasLength(5));
+      expect(diagnostics[0].message, contains('method "_method"'));
+      expect(diagnostics[1].message, contains('static method "_staticMethod"'));
+      expect(diagnostics[2].message, contains('getter "_value"'));
+      expect(diagnostics[3].message, contains('setter "_value"'));
+      expect(diagnostics[4].message, contains('operator "+"'));
+    });
 
     test(
       'correction text is populated and references the declaration name',

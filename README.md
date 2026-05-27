@@ -78,24 +78,45 @@ Exit codes:
 
 - **Id:** `unused_function`
 - **Default severity:** `warning`
+- **Dispatch:** multi-file (registered via `registerMultiFile`); the rule sees
+  every resolved compilation unit in the analyzed set on a single invocation
+  and resolves references across files.
 
-Flags file-local function declarations that are never referenced:
+Flags function-shaped declarations that are never referenced anywhere in the
+analyzed file set:
 
-- top-level private functions, whose names begin with `_`, in libraries that
-  have no `part` files;
-- local function declarations inside another function or method body.
+- top-level functions — private (name begins with `_`) unconditionally, and
+  public when the file lives under a package's `lib/src/` directory and is
+  never referenced from outside it;
+- top-level getters and setters, with the same privacy + `lib/src/` rule as
+  top-level functions;
+- local function declarations inside another function or method body;
+- constructors on classes and enums (generative, named, factory, and
+  redirecting forms);
+- instance and `static` methods on classes, mixins, enums, and extension
+  types;
+- getters, setters, and operators declared on classes, mixins, enums, and
+  extension types;
+- methods, `static` methods, getters, setters, and operators declared inside
+  `extension Foo on T {}` blocks.
 
-Both direct calls, such as `_foo()`, and tear-offs, such as `_foo`, count as a
-use.
+Direct calls, tear-offs, named-type references, constructor invocations and
+redirects, operator and index expressions, explicit member accesses, and
+setter writes all count as a use.
 
-Deliberately not flagged in this release:
+Deliberately not flagged:
 
-- public top-level functions;
 - the library's `main` function;
-- methods, constructors, getters, setters, and operators;
-- `external` functions;
-- functions annotated with `@pragma('vm:entry-point')`;
-- files belonging to libraries that have `part` files.
+- public top-level functions, getters, and setters declared outside
+  `lib/src/` (i.e. the package's public surface);
+- `external` declarations of any shape;
+- declarations annotated with `@pragma('vm:entry-point')`;
+- top-level functions, getters, and setters declared in a library that has
+  `part` files (a sibling part could legitimately reference them, and the
+  rule does not currently traverse part libraries);
+- members of a private, unreferenced class, mixin, enum, extension type, or
+  extension — `unused_class` already flags the enclosing declaration, so
+  re-flagging every member would just repeat the report.
 
 ### `unused_class`
 
