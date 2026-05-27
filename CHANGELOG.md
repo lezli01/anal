@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/lezli01/anal/compare/v0.3.2...v0.3.3) (2026-05-27)
+
+
+### Bug Fixes
+
+* added nuances ([35937b3](https://github.com/lezli01/anal/commit/35937b36ea4f90c7f05157e9af2cfcd69ce65dd3))
+* **rules:** avoid UnsupportedError on namePart in unused_class ([7c8acc8](https://github.com/lezli01/anal/commit/7c8acc84078e19dd41b893fec836766a93283a46))
+
 ## [0.3.2](https://github.com/lezli01/anal/compare/v0.3.1...v0.3.2) (2026-05-27)
 
 

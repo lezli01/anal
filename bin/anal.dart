@@ -10,7 +10,7 @@ import 'package:anal/src/rules/unused_source_file_rule.dart';
 import 'package:anal/src/severity.dart';
 import 'package:args/args.dart';
 
-const String _version = '0.3.2'; // x-release-please-version
+const String _version = '0.3.3'; // x-release-please-version
 
 Future<void> main(List<String> arguments) async {
   final parser = _buildArgParser();
