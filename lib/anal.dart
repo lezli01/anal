@@ -1,4 +1,5 @@
-/// `anal` — a pluggable static analysis frame for Dart and Flutter projects.
+/// `anal` is a pluggable static analysis framework for Dart and Flutter
+/// projects.
 ///
 /// This library re-exports the package's public surface: the [AnalyzerRule]
 /// extension point, the runner that drives it, the diagnostic value types,

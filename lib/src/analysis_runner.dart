@@ -104,9 +104,12 @@ class AnalysisRunner {
       if (type == FileSystemEntityType.file) {
         if (absolute.endsWith('.dart')) found.add(absolute);
       } else if (type == FileSystemEntityType.directory) {
-        final glob = Glob(p.join(absolute, '**.dart'));
-        for (final entity in glob.listSync(followLinks: false)) {
-          if (entity is File) found.add(p.normalize(entity.path));
+        for (final entity in Directory(
+          absolute,
+        ).listSync(recursive: true, followLinks: false)) {
+          if (entity is File && entity.path.endsWith('.dart')) {
+            found.add(p.normalize(entity.path));
+          }
         }
       } else {
         // Treat as a glob pattern relative to the current directory.

@@ -1,0 +1,44 @@
+name: Bug report
+description: Report something that is broken or surprising.
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve anal. Please include a small reproduction when you can.
+  - type: textarea
+    id: current
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include commands, source snippets, or a minimal repository.
+      render: sh
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: anal version
+      placeholder: 0.1.0
+  - type: input
+    id: flutter
+    attributes:
+      label: Flutter and Dart versions
+      placeholder: fvm flutter --version
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context

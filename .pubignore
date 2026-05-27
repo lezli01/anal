@@ -1,0 +1,8 @@
+.github/
+.fvm/
+build/
+coverage/
+
+AGENTS.md
+CLAUDE.md
+release-please-config.json
