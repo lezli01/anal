@@ -92,7 +92,7 @@ class AnalysisRunner {
 
   List<String> _resolveFiles() {
     final excludeGlobs = <Glob>[
-      for (final pattern in options.excludePaths) Glob(pattern),
+      for (final pattern in options.excludePaths) Glob(_toPosix(pattern)),
     ];
 
     final found = <String>{};
@@ -124,10 +124,27 @@ class AnalysisRunner {
 
     final filtered = <String>[
       for (final file in found)
-        if (!excludeGlobs.any((g) => g.matches(file))) file,
+        if (!_isExcluded(file, excludeGlobs)) file,
     ]..sort();
     return filtered;
   }
+
+  bool _isExcluded(String file, List<Glob> globs) {
+    if (globs.isEmpty) return false;
+    final candidates = <String>[
+      _toPosix(p.basename(file)),
+      _toPosix(p.relative(file, from: Directory.current.path)),
+      _toPosix(file),
+    ];
+    for (final glob in globs) {
+      for (final candidate in candidates) {
+        if (glob.matches(candidate)) return true;
+      }
+    }
+    return false;
+  }
+
+  String _toPosix(String path) => p.normalize(path).replaceAll(r'\', '/');
 
   /// Best-effort lookup of the Dart SDK directory used to resolve `dart:`
   /// imports during analysis.
