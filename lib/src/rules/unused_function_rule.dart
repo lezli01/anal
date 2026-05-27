@@ -12,6 +12,7 @@ import '../severity.dart';
 import '../source_location.dart';
 
 part 'unused_function/candidate_collector.dart';
+part 'unused_function/extension_member_collector.dart';
 part 'unused_function/local_function_collector.dart';
 part 'unused_function/top_level_private_collector.dart';
 
@@ -78,6 +79,7 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
     const collectors = <_UnusedFunctionCandidateCollector>[
       _TopLevelPrivateCollector(),
       _LocalFunctionCollector(),
+      _ExtensionMemberCollector(),
     ];
 
     final diagnostics = <Diagnostic>[];
