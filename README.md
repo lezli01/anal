@@ -1,102 +1,93 @@
 # anal
 
-`anal` is a pluggable static-analysis frame for Dart and Flutter projects. It
-provides the contracts, registry, runner, and CLI that custom analyzer rules
-plug into — so you can implement project-specific checks as plain Dart classes
-without writing an analyzer plugin from scratch.
+[![CI](https://github.com/lezli01/anal/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lezli01/anal/actions/workflows/ci.yml)
+[![Release Please](https://github.com/lezli01/anal/actions/workflows/release-please.yml/badge.svg?branch=master)](https://github.com/lezli01/anal/actions/workflows/release-please.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-This release ships the frame **plus the first built-in rule, `unused_function`**.
-Additional built-in rules (broader unused-declaration detection, `const`
-suggestions, and friends) will land in future versions.
+`anal` is a pluggable static analysis framework for Dart and Flutter projects.
+It provides the contracts, registry, runner, built-in rules, and CLI that
+custom analyzer rules plug into, so teams can implement project-specific checks
+as plain Dart classes without writing a full analyzer plugin.
 
-## Status / Stability
+This release ships the framework plus the first built-in rule:
+`unused_function`. Additional built-in rules, including broader unused
+declaration detection and `const` suggestions, are planned for future releases.
 
-Pre-1.0.0. The public API may change between MINOR versions while the frame
-matures. Pin a specific version in your `pubspec.yaml` if you need stability.
+## Status
+
+`anal` is pre-1.0.0. Public APIs may change between minor versions while the
+framework matures. Pin a specific version in your `pubspec.yaml` if you need
+repeatable behavior.
 
 ## Installation
 
-Add `anal` as a `dev_dependency` in your project's `pubspec.yaml`:
+Add `anal` as a development dependency:
+
+```sh
+flutter pub add --dev anal
+```
+
+Or edit `pubspec.yaml` directly:
 
 ```yaml
 dev_dependencies:
   anal: ^0.1.0
 ```
 
-Then fetch packages:
+## CLI Usage
 
-```sh
-fvm flutter pub get
-```
-
-Or, without FVM:
-
-```sh
-dart pub get
-```
-
-## Usage / Running
-
-Run the CLI against your project:
+Run the analyzer against the current project:
 
 ```sh
 dart run anal [options] [paths...]
 ```
 
-Or, under FVM:
+When no paths are provided, `anal` inspects `lib/`, `bin/`, and `test/`.
 
-```sh
-fvm dart run anal [options] [paths...]
-```
+Options:
 
-If no paths are given, `anal` analyzes `lib/`, `bin/`, and `test/` by default.
-
-Flags:
-
-- `--help`, `-h` — print usage and exit.
-- `--version` — print the package version and exit.
-- `--rules <id,id,...>` — restrict the run to the given rule ids.
-- `--exclude <glob>` — exclude paths matching `<glob>`. Repeatable.
+- `--help`, `-h`: print usage and exit.
+- `--version`: print the package version and exit.
+- `--rules <id,id,...>`: run only the listed rule ids.
+- `--exclude <glob>`: exclude matching paths. Repeat for multiple patterns.
 
 Exit codes:
 
-- `0` — no diagnostics with `Severity.error`.
-- `1` — at least one `Severity.error` diagnostic was emitted.
-- `64` — usage error (bad flags).
+- `0`: no diagnostics with `Severity.error`.
+- `1`: at least one error diagnostic was emitted.
+- `64`: command-line usage error.
 
-### Built-in rules
+## Built-In Rules
 
-`anal` ships with the following rules enabled by default. To turn one off,
-pass `--rules` with a list that omits it (for example, once other rules
-exist, `--rules other_rule` will run everything except `unused_function`).
+`anal` ships with the following rules enabled by default. To turn one off, pass
+`--rules` with a list that omits it.
 
-#### `unused_function`
+### `unused_function`
 
 - **Id:** `unused_function`
 - **Default severity:** `warning`
 
 Flags file-local function declarations that are never referenced:
 
-- top-level **private** functions (names beginning with `_`) in libraries
-  that have no `part` files, and
-- **local function declarations** (functions declared inside another
-  function or method body)
+- top-level private functions, whose names begin with `_`, in libraries that
+  have no `part` files;
+- local function declarations inside another function or method body.
 
-that are never referenced in the same file. Both direct calls (`_foo()`)
-and tear-offs (`_foo`) count as a use.
+Both direct calls, such as `_foo()`, and tear-offs, such as `_foo`, count as a
+use.
 
-Deliberately **not** flagged in this release:
+Deliberately not flagged in this release:
 
-- public top-level functions (cannot be judged without cross-file analysis),
-- the library's `main` function,
-- methods, constructors, getters, setters, and operators,
-- `external` functions,
-- functions annotated with `@pragma('vm:entry-point')`,
+- public top-level functions;
+- the library's `main` function;
+- methods, constructors, getters, setters, and operators;
+- `external` functions;
+- functions annotated with `@pragma('vm:entry-point')`;
 - files belonging to libraries that have `part` files.
 
-## Extending with custom rules (advanced / programmatic API)
+## Custom Rules
 
-Implement `AnalyzerRule`, register it with a `RuleRegistry`, and hand the
+Implement `AnalyzerRule`, register it with a `RuleRegistry`, and pass the
 registry to `AnalysisRunner`:
 
 ```dart
@@ -122,22 +113,39 @@ Future<void> main() async {
   final registry = RuleRegistry()..register(MyRule());
   const options = AnalOptions.defaults();
   final runner = AnalysisRunner(registry: registry, options: options);
+
   final diagnostics = await runner.run();
-  for (final d in diagnostics) {
-    print(d);
+  for (final diagnostic in diagnostics) {
+    print(diagnostic);
   }
 }
 ```
 
-Rules are dispatched once per file. Cross-file analyses are not supported by
-the frame today.
+Rules are dispatched once per file. Cross-file analysis is intentionally out
+of scope for the current rule API.
 
-## Roadmap
+## Development
 
-- Unused class detection.
-- `var` → `const` suggestions where applicable.
-- More rules coming.
+This repository uses FVM to pin Flutter. Install the configured SDK before
+working locally:
+
+```sh
+fvm install
+fvm flutter pub get
+```
+
+Before opening a pull request, run the same checks as CI:
+
+```sh
+fvm dart format .
+fvm dart analyze --fatal-infos --fatal-warnings
+fvm flutter test --coverage
+fvm dart pub publish --dry-run
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution workflow details and
+[SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 
-See [LICENSE](LICENSE).
+`anal` is available under the [MIT License](LICENSE).

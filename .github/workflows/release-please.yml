@@ -2,11 +2,16 @@ name: Release Please
 
 on:
   push:
-    branches: [main]
+    branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release-please:
