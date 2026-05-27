@@ -11,6 +11,7 @@ import '../multi_file_analyzer_rule.dart';
 import '../severity.dart';
 import '../source_location.dart';
 
+part 'unused_function/class_member_collector.dart';
 part 'unused_function/constructor_collector.dart';
 part 'unused_function/extension_member_collector.dart';
 part 'unused_function/local_function_collector.dart';
@@ -73,6 +74,7 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
       _LocalFunctionCollector(),
       _ConstructorCollector(),
       _ExtensionMemberCollector(),
+      _ClassMemberCollector(),
     ];
 
     final diagnostics = <Diagnostic>[];
