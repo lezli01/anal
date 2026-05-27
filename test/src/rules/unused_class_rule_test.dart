@@ -134,6 +134,26 @@ void main() { _Foo.bar(); }
       expect(diagnostic.message, contains('extension type'));
     });
 
+    // Regression test for the analyzer 9.0.0 build break introduced when the
+    // rule reached into `ExtensionTypeDeclaration.primaryConstructor` (an
+    // analyzer 10+ API). The rule must still report unused private extension
+    // types and still ignore ones that are used.
+    test('analyzer 9.0.0 compatibility: flags unused but ignores used '
+        'private extension type named _FooExt', () async {
+      final unusedDiagnostics = await runRule(
+        'extension type _FooExt(int value) {}\nvoid main() {}\n',
+      );
+      expect(unusedDiagnostics, hasLength(1));
+      expect(unusedDiagnostics.single.message, contains('_FooExt'));
+      expect(unusedDiagnostics.single.message, contains('extension type'));
+
+      final usedDiagnostics = await runRule(
+        'extension type _FooExt(int value) {}\n'
+        'void main() { _FooExt(1); }\n',
+      );
+      expect(usedDiagnostics, isEmpty);
+    });
+
     test('counts enum value access as a use of the enum', () async {
       final diagnostics = await runRule(
         'enum _E { a, b }\nvoid main() { _E.a; }\n',

@@ -66,6 +66,12 @@
 - `anal` is now installable alongside `freezed ^3.2.5`.
 - `dart run anal --version` now prints the correct package version
   (`0.2.0`) instead of the stale hardcoded `0.1.0`.
+- Restored analyzer 9.0.0 compatibility for the `unused_class` rule.
+  The rule previously reached into `ExtensionTypeDeclaration.primaryConstructor`,
+  which only exists in analyzer 10+, causing a build break for consumers
+  pinned to analyzer 9.0.0 (`'primaryConstructor' isn't defined for the type
+  'ExtensionTypeDeclaration'`). The rule now uses the cross-version
+  `ExtensionTypeDeclaration.name` accessor.
 
 ### Changed
 

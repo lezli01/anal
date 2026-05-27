@@ -139,7 +139,12 @@ class UnusedClassRule implements AnalyzerRule {
       );
     }
     if (declaration is ExtensionTypeDeclaration) {
-      final nameToken = declaration.primaryConstructor.typeName;
+      // `ExtensionTypeDeclaration.name` is the only name accessor available in
+      // analyzer 9.0.0; `primaryConstructor` only exists in analyzer 10+ and
+      // `namePart` is not exposed on this node. Deprecation is suppressed
+      // because we still need to compile against the full supported range.
+      // ignore: deprecated_member_use
+      final nameToken = declaration.name;
       if (!_isPrivateName(nameToken.lexeme)) return null;
       if (_hasVmEntryPointPragma(declaration.metadata)) return null;
       return _Candidate(
