@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Needed so this workflow can dispatch publish.yml on the new tag.
+  # GITHUB_TOKEN-pushed tags do not trigger downstream `on: push: tags`
+  # workflows, so we kick off publish.yml explicitly via the API.
+  actions: write
 
 concurrency:
   group: release-please-${{ github.ref }}
@@ -29,3 +33,9 @@ jobs:
           # from the repo root.
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Trigger pub.dev publish for new tag
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run publish.yml --ref "${{ steps.release.outputs.tag_name }}"

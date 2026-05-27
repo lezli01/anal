@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## [0.3.2](https://github.com/lezli01/anal/compare/v0.3.1...v0.3.2) (2026-05-27)
+
+
+### Bug Fixes
+
+* removed invalid version ([67cdcac](https://github.com/lezli01/anal/commit/67cdcac96f426a118632a60e8698a54d414e557a))
+
+## [0.3.1](https://github.com/lezli01/anal/compare/v0.3.0...v0.3.1) (2026-05-27)
+
+
+### Continuous Integration
+
+* **release:** wire bin/anal.dart into release-please and trigger 0.3.1 ([e544060](https://github.com/lezli01/anal/commit/e5440600d4531b193e30faa28c85c681d8b98c04))
+
+## [0.3.0](https://github.com/lezli01/anal/compare/v0.2.0...v0.3.0) (2026-05-27)
 
 ### Added
 
@@ -59,13 +73,19 @@
 - Tightened package metadata for pub.dev discovery.
 - Widened the analyzer dependency to `>=9.0.0 <13.0.0` so projects using
   `freezed >=3.2.5` can add `anal` without a version-solver conflict.
+- Default exclude patterns now include `*.g.dart` and `*.freezed.dart`.
+  Pass an empty `excludePaths` (or `--no-default-excludes` on the CLI)
+  to opt out.
+- `--exclude` now layers on top of the default excludes instead of
+  replacing them. Patterns you pass are added to the built-in defaults;
+  use `--no-default-excludes` if you need to suppress the defaults.
 
 ### Fixed
 
 - Fixed directory include discovery on Windows.
 - `anal` is now installable alongside `freezed ^3.2.5`.
 - `dart run anal --version` now prints the correct package version
-  (`0.2.0`) instead of the stale hardcoded `0.1.0`.
+  instead of the stale hardcoded `0.1.0`.
 - Restored analyzer 9.0.0 compatibility for the `unused_class` rule.
   The rule previously reached into `ExtensionTypeDeclaration.primaryConstructor`,
   which only exists in analyzer 10+, causing a build break for consumers
@@ -80,41 +100,11 @@
   `Rule unused_class threw during analysis: ...`. The rule now uses the
   always-available `name` token on both nodes.
 
-### Changed
+### Commits
 
-- Default exclude patterns now include `*.g.dart` and `*.freezed.dart`.
-  Pass an empty `excludePaths` (or `--no-default-excludes` on the CLI)
-  to opt out.
-- `--exclude` now layers on top of the default excludes instead of
-  replacing them. Patterns you pass are added to the built-in defaults;
-  use `--no-default-excludes` if you need to suppress the defaults.
-
-## [0.3.2](https://github.com/lezli01/anal/compare/v0.3.1...v0.3.2) (2026-05-27)
-
-
-### Bug Fixes
-
-* removed invalid version ([67cdcac](https://github.com/lezli01/anal/commit/67cdcac96f426a118632a60e8698a54d414e557a))
-
-## [0.3.1](https://github.com/lezli01/anal/compare/v0.3.0...v0.3.1) (2026-05-27)
-
-
-### Continuous Integration
-
-* **release:** wire bin/anal.dart into release-please and trigger 0.3.1 ([e544060](https://github.com/lezli01/anal/commit/e5440600d4531b193e30faa28c85c681d8b98c04))
-
-## [0.3.0](https://github.com/lezli01/anal/compare/v0.2.0...v0.3.0) (2026-05-27)
-
-
-### Features
-
-* fixing version handling ([3460776](https://github.com/lezli01/anal/commit/34607762c6cdf11b87522b85a40f3884d060c13d))
-
-
-### Bug Fixes
-
-* fixed ci ([30aa5b6](https://github.com/lezli01/anal/commit/30aa5b67a1f33fc18d3a0918d9fef6203fdd1497))
-* refreshed readme ([391d527](https://github.com/lezli01/anal/commit/391d527d6a51af8f97630b32a09a5342da82e2a4))
+* feat: fixing version handling ([3460776](https://github.com/lezli01/anal/commit/34607762c6cdf11b87522b85a40f3884d060c13d))
+* fix: fixed ci ([30aa5b6](https://github.com/lezli01/anal/commit/30aa5b67a1f33fc18d3a0918d9fef6203fdd1497))
+* fix: refreshed readme ([391d527](https://github.com/lezli01/anal/commit/391d527d6a51af8f97630b32a09a5342da82e2a4))
 
 ## [0.2.0](https://github.com/lezli01/anal/compare/v0.1.0...v0.2.0) (2026-05-27)
 

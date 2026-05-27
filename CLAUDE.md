@@ -137,21 +137,24 @@ Closes: #42
 
 ## Changelog
 
-- **Always update [CHANGELOG.md](CHANGELOG.md)** whenever you make a user-visible change. This includes new features, bug fixes, deprecations, removals, lint-rule changes, public API tweaks, and documentation that affects consumers.
-- Follow the **[Keep a Changelog](https://keepachangelog.com/en/1.1.0/)** format, with entries grouped under: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
-- Maintain an `## [Unreleased]` section at the top. Add your entry there in the **same commit** that introduces the change — never as a separate "update changelog" commit.
-- Write entries from the **consumer's perspective**: describe what changed for users of the package, not the internal implementation.
-- Reference issues/PRs where useful (e.g. `- Added `prefer_const_constructors` lint. (#42)`).
-- On release, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and bump `version:` in [pubspec.yaml](pubspec.yaml) in the same commit.
-- Purely internal changes (refactors, CI tweaks, test-only changes, chore commits) **do not** need a changelog entry — but when in doubt, add one.
-- Never edit changelog entries for already-published versions; correct mistakes by adding a new entry instead.
+[CHANGELOG.md](CHANGELOG.md) is generated and maintained by **release-please** ([.github/workflows/release-please.yml](.github/workflows/release-please.yml)) from Conventional Commit messages. **Do not hand-edit the changelog for in-flight work.**
+
+- The commit message *is* the changelog entry. Write it from the consumer's perspective — describe what changed for users of the package, not the internal implementation.
+- Only `feat:` and `fix:` (and `!`/`BREAKING CHANGE:` footers) produce changelog entries by default. Other types (`docs`, `chore`, `ci`, `refactor`, `test`, `build`, `style`, `perf`, `revert`) are intentionally excluded.
+- A "release PR" opened by release-please collects the pending entries into the next `## [X.Y.Z]` section, bumps `version:` in [pubspec.yaml](pubspec.yaml), and bumps the `_version` marker in [bin/anal.dart](bin/anal.dart) via the `x-release-please-version` comment. Merging that PR cuts the release.
+- Hand-editing past `## [X.Y.Z]` sections is fine for prose / typo fixes, but never re-version, re-date, or remove a published entry — correct mistakes by adding a follow-up entry in a later release.
+- Do **not** add a manual `## [Unreleased]` section. Past content is folded into the most recent release; new content arrives via the next release PR.
 
 ## Versioning & Releases
 
-- Follows **[Semantic Versioning](https://semver.org/)** as adapted by `pub.dev`.
-- Update [CHANGELOG.md](CHANGELOG.md) with every user-visible change under the next version heading.
-- Bump `version:` in [pubspec.yaml](pubspec.yaml) in the same commit that finalizes the changelog entry. Also update the `_version` constant in [bin/anal.dart](bin/anal.dart) to match, or `dart run anal --version` will report the previous version.
-- Validate with `fvm dart pub publish --dry-run` before tagging.
+- Follows **[Semantic Versioning](https://semver.org/)** as adapted by `pub.dev`. Version bumps are driven by release-please: `feat:` → MINOR (pre-1.0 per `bump-minor-pre-major`), `fix:` → PATCH (pre-1.0 per `bump-patch-for-minor-pre-major`), `!` / `BREAKING CHANGE:` → MINOR pre-1.0 / MAJOR post-1.0.
+- Releases are fully automated end-to-end:
+  1. Push a Conventional Commit to `master`.
+  2. release-please opens or updates the release PR — review CHANGELOG + version bumps there.
+  3. Merging the release PR creates the GitHub release and `vX.Y.Z` tag.
+  4. The release-please workflow dispatches [publish.yml](.github/workflows/publish.yml) against the new tag, which publishes to pub.dev via OIDC.
+- Do **not** manually bump `version:` in [pubspec.yaml](pubspec.yaml) or `_version` in [bin/anal.dart](bin/anal.dart) — the release PR does it. The `// x-release-please-version` comment in `bin/anal.dart` and the `extra-files` block in [release-please-config.json](release-please-config.json) keep them in sync.
+- Validate locally with `fvm dart pub publish --dry-run` before merging the release PR if you want a final check.
 - Tag releases as `vX.Y.Z` matching the pubspec version.
 
 ## Things to Watch Out For
