@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.6](https://github.com/lezli01/anal/compare/v0.3.5...v0.3.6) (2026-05-28)
+
+
+### Features
+
+* function analysis enhanced ([#26](https://github.com/lezli01/anal/issues/26)) ([b0538b9](https://github.com/lezli01/anal/commit/b0538b963ddc65d4e5eb565d578e4673fa369957))
+* **unused_function:** normalise generic member identity in reference tracking ([c19c502](https://github.com/lezli01/anal/commit/c19c5024ed8a87e5cda64859d751f78b2df7e2f6))
+* **unused_function:** record enum-value declarations as uses of the enum constructor ([b592b78](https://github.com/lezli01/anal/commit/b592b78e4a2816b381c86d88c828b516e57a7bfa))
+* **unused_function:** record implicit super-constructor invocation as a use ([ee2a5c1](https://github.com/lezli01/anal/commit/ee2a5c16d6a760f9c3b8a68d77063f55a8701d22))
+* **unused_function:** treat overrides of reachable supertype members as uses ([c9f3c0e](https://github.com/lezli01/anal/commit/c9f3c0eabc2e20b35cfc9f5e44fcf0b3b32179e2))
+* **unused_function:** walk supertype chain for noSuchMethod exemption ([a85e7e2](https://github.com/lezli01/anal/commit/a85e7e22e79a5ab0e0c9216ba14bacbe7b262c36))
+
+
+### Bug Fixes
+
+* **unused_function:** exempt flutter gen-l10n generated localization output ([0c06c1f](https://github.com/lezli01/anal/commit/0c06c1f3b1b1d5af5b21d3cb10465ec16477c710))
+
 ## [0.3.5](https://github.com/lezli01/anal/compare/v0.3.4...v0.3.5) (2026-05-28)
 
 
