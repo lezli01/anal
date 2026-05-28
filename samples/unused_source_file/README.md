@@ -15,6 +15,10 @@ samples/unused_source_file/
     src/
       used.dart            # imported by the entry point (reachable)
       used_via_part.dart   # part of used.dart (reachable transitively)
+      mobile_impl.dart     # default branch of a conditional export (reachable)
+      web_impl.dart        # `dart.library.html` branch of the same conditional
+                           # export (reachable on every platform — both
+                           # branches are walked)
       orphan.dart          # never imported (UNREACHABLE — must trigger)
   pubspec.yaml             # path-dependent on ../.. (the root anal package)
 ```
@@ -25,6 +29,8 @@ samples/unused_source_file/
 | `lib/unused_source_file_sample.dart` | not flagged (lib entry point) |
 | `lib/src/used.dart`               | not flagged (imported)        |
 | `lib/src/used_via_part.dart`      | not flagged (`part` of used)  |
+| `lib/src/mobile_impl.dart`        | not flagged (default branch of the conditional export) |
+| `lib/src/web_impl.dart`           | not flagged (`dart.library.html` branch of the conditional export) |
 | `lib/src/orphan.dart`             | **flagged**                   |
 
 ## Running

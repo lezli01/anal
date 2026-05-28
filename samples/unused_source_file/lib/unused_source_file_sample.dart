@@ -9,5 +9,12 @@ library;
 
 import 'src/used.dart';
 
+// Conditional export: on the VM the analyzer's resolved URI points at
+// `src/mobile_impl.dart`; under `dart.library.html` (Flutter web) it
+// points at `src/web_impl.dart`. The `unused_source_file` rule must
+// follow BOTH branches so neither impl file is flagged when the sample
+// is analysed on a single platform.
+export 'src/mobile_impl.dart' if (dart.library.html) 'src/web_impl.dart';
+
 /// Returns a greeting for [name], delegating to the chained library.
 String greet(String name) => greeting(name);

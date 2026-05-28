@@ -25,6 +25,11 @@ samples/all_rules/
       used.dart                      # library that declares `part 'used_via_part.dart';`
                                      # and is imported by the entry — reachable
       used_via_part.dart             # `part of 'used.dart';` — reachable transitively
+      mobile_impl.dart               # default branch of a conditional export from
+                                     # the entry — reachable
+      web_impl.dart                  # `dart.library.html` branch of the same
+                                     # conditional export — reachable on every
+                                     # platform (both branches are walked)
       orphan.dart                    # never imported — UNREACHABLE
 ```
 
@@ -136,3 +141,5 @@ same kind:
 | `lib/all_rules_sample.dart`       | sits directly under `lib/`, so the rule treats it as an entry point. |
 | `lib/src/used.dart`               | imported by `lib/all_rules_sample.dart` (a `lib/` direct-child entry point). |
 | `lib/src/used_via_part.dart`      | `part of 'used.dart';` — reachable transitively via the entry-point → `used.dart` → `used_via_part.dart` chain. |
+| `lib/src/mobile_impl.dart`        | default branch of the conditional `export` in `lib/all_rules_sample.dart` — reachable. |
+| `lib/src/web_impl.dart`           | `dart.library.html` branch of the same conditional `export` — both branches of every conditional URI are walked, so this file is reachable on every platform. |
