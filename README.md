@@ -125,6 +125,13 @@ Deliberately not flagged:
 - every member and constructor declared in a library that imports
   `dart:mirrors` — reflection can invoke arbitrary members by name, so the
   rule conservatively skips the whole unit;
+- every declaration in a unit stamped with the de-facto generated-code
+  marker `// ignore_for_file: type=lint` at the top of the file — Flutter's
+  `flutter gen-l10n` writes this line into the synthetic `L` base class and
+  every per-locale `output-localization-file` subclass it emits, and other
+  build-time Dart codegen tools follow the same convention, so the rule
+  treats the marker as a "this file is generated, do not flag" signal and
+  skips every candidate collector for the unit;
 - members of a private, unreferenced class, mixin, enum, extension type, or
   extension — `unused_class` already flags the enclosing declaration, so
   re-flagging every member would just repeat the report.

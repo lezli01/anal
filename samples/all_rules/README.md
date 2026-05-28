@@ -25,6 +25,12 @@ samples/all_rules/
       mirrors_user.dart              # `dart:mirrors`-importing companion — every
                                      # member declared here is exempt from
                                      # unused_function under the mirrors assumption
+      l10n/
+        l10n.dart                    # synthetic `flutter gen-l10n` output — every
+        l10n_en.dart                 # candidate in either unit is exempt from
+                                     # unused_function because the top of each
+                                     # file carries the `// ignore_for_file:
+                                     # type=lint` generated-code marker
       used.dart                      # library that declares `part 'used_via_part.dart';`
                                      # and is imported by the entry — reachable
       used_via_part.dart             # `part of 'used.dart';` — reachable transitively
@@ -66,16 +72,16 @@ samples/all_rules/lib/unused_class_demo.dart:15:7 • [warning] unused_class: Th
 samples/all_rules/lib/unused_class_demo.dart:18:7 • [warning] unused_class: The mixin "_Bar" is declared but never used.
 samples/all_rules/lib/unused_class_demo.dart:21:6 • [warning] unused_class: The enum "_Baz" is declared but never used.
 samples/all_rules/lib/unused_class_demo.dart:24:16 • [warning] unused_class: The extension type "_Qux" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:27:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:30:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:33:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:120:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:123:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:126:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:129:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:132:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:139:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:193:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:122:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:125:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:128:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:131:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:134:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:141:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:195:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
 ```
 
 (Diagnostic ordering depends on the runner's file iteration; the set of
@@ -119,6 +125,7 @@ samples/all_rules/lib/unused_function_demo.dart:193:10 • [warning] unused_func
 | `N9` | `Service.call`                              | Invoked from `main` via the implicit `.call` (`service()`); `visitFunctionExpressionInvocation` records the `call` element as a use. |
 | `N10`| every member of `NoSuchMethodHolder`        | The class declares its own `noSuchMethod`, which can intercept any call by name at runtime — the rule skips every member and the constructor. |
 | `N11`| every member of `MirrorsHostedService` in `lib/src/mirrors_user.dart` | The library imports `dart:mirrors`, which can invoke arbitrary members by name — the rule skips every member and constructor declared in the unit. |
+| `N12`| every abstract getter on `L` in `lib/src/l10n/l10n.dart` and every concrete `@override` getter on `LEn` in `lib/src/l10n/l10n_en.dart` | Each file is stamped with the de-facto Dart "this is generated" marker `// ignore_for_file: type=lint` at the top, which `flutter gen-l10n` writes into every file it emits — the rule treats the marker as a unit-level exemption and skips every candidate collector for the unit. |
 
 Each positive case has a used twin that exercises the negative path for the
 same kind:
@@ -160,6 +167,8 @@ same kind:
 | `lib/unused_class_demo.dart`      | sits directly under `lib/` — entry point.                                              |
 | `lib/src/internals.dart`          | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/mirrors_user.dart`       | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
+| `lib/src/l10n/l10n.dart`          | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
+| `lib/src/l10n/l10n_en.dart`       | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/used.dart`               | imported by `lib/all_rules_sample.dart` (a `lib/` direct-child entry point).           |
 | `lib/src/used_via_part.dart`      | `part of 'used.dart';` — reachable transitively via the entry-point → `used.dart` → `used_via_part.dart` chain. |
 | `lib/src/mobile_impl.dart`        | default branch of the conditional `export` in `lib/all_rules_sample.dart` — reachable. |

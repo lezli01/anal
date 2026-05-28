@@ -17,6 +17,8 @@
 library;
 
 import 'src/internals.dart';
+import 'src/l10n/l10n.dart';
+import 'src/l10n/l10n_en.dart';
 import 'src/mirrors_user.dart';
 
 // === POSITIVE CASES (MUST trigger unused_function) ===

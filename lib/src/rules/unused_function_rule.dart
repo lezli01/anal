@@ -84,6 +84,14 @@ part 'unused_function/top_level_function_collector.dart';
 ///   member of an analyzed library that imports `dart:mirrors` is
 ///   treated as potentially used. The rule skips member and
 ///   constructor candidates declared in such libraries.
+/// * **Units stamped with the generated-code marker
+///   `// ignore_for_file: type=lint`.** Build-time codegen tools —
+///   most prominently Flutter's `gen_l10n` for `output-localization-file`
+///   output — stamp this line comment at the top of every file they
+///   emit to tell the SDK analyzer to suppress all lints on the
+///   generated code. The rule treats the marker as a "this file is
+///   generated, do not flag" signal and skips every candidate
+///   collector for the unit.
 ///
 /// **Features that flow through existing visitors with no extra
 /// handling.** The following language features do not need
@@ -146,6 +154,7 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
 
     final diagnostics = <Diagnostic>[];
     for (final unit in context.units) {
+      if (_unitIsGeneratedTypeLintIgnored(unit.unit)) continue;
       final skipMemberCandidates = _unitImportsDartMirrors(unit.unit);
       for (final collector in collectors) {
         if (skipMemberCandidates &&
@@ -255,6 +264,48 @@ bool _unitImportsDartMirrors(CompilationUnit unit) {
   for (final directive in unit.directives) {
     if (directive is! ImportDirective) continue;
     if (directive.uri.stringValue == 'dart:mirrors') return true;
+  }
+  return false;
+}
+
+/// Whether [unit] is stamped with a generated-code marker at the top
+/// of the file: a `// ignore_for_file: …, type=lint, …` line comment
+/// preceding the file's first directive or declaration.
+///
+/// Build-time Dart codegen tools — most prominently Flutter's
+/// `gen_l10n` for the synthetic `L` base class and per-locale
+/// subclasses it emits under `output-localization-file` — stamp this
+/// marker into every file they emit to tell the SDK analyzer to
+/// suppress all lints on the generated code. The dispatch site treats
+/// the marker as a "this file is generated, do not flag" signal and
+/// skips every candidate collector for the unit: generated
+/// localization output is a translation surface keyed off ARB
+/// resources, and the rule has no business reporting any of its
+/// declarations as unused.
+bool _unitIsGeneratedTypeLintIgnored(CompilationUnit unit) {
+  CommentToken? comment = unit.beginToken.precedingComments;
+  while (comment != null) {
+    if (_isTypeLintIgnoreForFile(comment.lexeme)) return true;
+    comment = comment.next as CommentToken?;
+  }
+  return false;
+}
+
+/// Whether [lexeme] is a line comment of the form
+/// `// ignore_for_file: …, type=lint, …` — i.e. a Dart `ignore_for_file`
+/// directive whose comma-separated code list contains `type=lint`.
+///
+/// `flutter gen-l10n` emits exactly `// ignore_for_file: type=lint`, but
+/// any superset of codes (e.g. `// ignore_for_file: type=lint,
+/// unused_field`) still identifies the file as generated for the
+/// rule's purposes.
+bool _isTypeLintIgnoreForFile(String lexeme) {
+  if (!lexeme.startsWith('//')) return false;
+  final body = lexeme.substring(2).trim();
+  const prefix = 'ignore_for_file:';
+  if (!body.startsWith(prefix)) return false;
+  for (final code in body.substring(prefix.length).split(',')) {
+    if (code.trim() == 'type=lint') return true;
   }
   return false;
 }

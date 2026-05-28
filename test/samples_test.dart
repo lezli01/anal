@@ -16,7 +16,11 @@ import 'package:path/path.dart' as p;
 const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // samples/unused_function: README documents eleven unused_function
   // diagnostics — one in lib/src/internals.dart (P11) and ten in
-  // lib/unused_function_sample.dart (P1..P10).
+  // lib/unused_function_sample.dart (P1..P10). The companion
+  // lib/src/l10n/l10n.dart and lib/src/l10n/l10n_en.dart mock the output
+  // of `flutter gen-l10n` and are stamped with the de-facto generated-code
+  // marker `// ignore_for_file: type=lint`; every candidate in those units
+  // is exempt from the rule, so they MUST NOT contribute any diagnostics.
   'unused_function': [
     ('unused_function', 'lib/src/internals.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
@@ -51,8 +55,10 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // lib/unused_class_demo.dart), and one unused_source_file (lib/src/orphan.dart).
   // The combined sample also exercises the per-rule feature-aware negative cases:
   // object patterns, record literals + record patterns, cascades, callable-object
-  // `.call`, and the `noSuchMethod` / `dart:mirrors` exemptions for unused_function
-  // (lib/unused_function_demo.dart and lib/src/mirrors_user.dart); object patterns,
+  // `.call`, the `noSuchMethod` / `dart:mirrors` exemptions, and the
+  // `// ignore_for_file: type=lint` generated-code marker exemption for
+  // unused_function (lib/unused_function_demo.dart, lib/src/mirrors_user.dart, and
+  // lib/src/l10n/l10n.dart + lib/src/l10n/l10n_en.dart); object patterns,
   // record type annotations, and sealed-class pattern matching for unused_class
   // (lib/unused_class_demo.dart); and conditional + deferred imports for
   // unused_source_file (lib/src/conditional_hub.dart, lib/src/_io_impl.dart,
