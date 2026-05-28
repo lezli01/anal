@@ -147,6 +147,19 @@ Rules:
 - Reference issues in the footer: `Refs: #123`, `Closes: #123`.
 - One logical change per commit. Do not mix refactors with feature work.
 
+### Pull Request Titles
+
+PR titles must also follow Conventional Commits format — the same
+`<type>(<scope>): <summary>` shape, imperative mood, ≤ 72 chars, no
+trailing period.
+
+For a **single-commit PR** the PR title must be identical to that
+commit's summary line (first line of the commit message). Do not
+paraphrase or rephrase it.
+
+For a **multi-commit PR** choose a title that accurately summarises the
+overall change using the appropriate type and scope.
+
 ### Example
 
 ```
