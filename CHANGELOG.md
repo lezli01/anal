@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.5](https://github.com/lezli01/anal/compare/v0.3.4...v0.3.5) (2026-05-28)
+
+
+### Features
+
+* dart awareness ([#24](https://github.com/lezli01/anal/issues/24)) ([a966836](https://github.com/lezli01/anal/commit/a966836093fb7cb22c79a3edb9b083c699183a01))
+* **unused_class:** make rule Dart 3 feature-aware ([bc6c086](https://github.com/lezli01/anal/commit/bc6c0862b6ef457aba822b8a8fa79b3674e899dc))
+* **unused_function:** make rule feature-aware ([0ac7537](https://github.com/lezli01/anal/commit/0ac75377812a95d691ff0c49583ec6ebd3f44b0e))
+* **unused_source_file:** follow conditional and deferred import edges ([7e1bc72](https://github.com/lezli01/anal/commit/7e1bc72cdf70f03baed0a8c84b23419310a5970f))
+* updated sample ([#21](https://github.com/lezli01/anal/issues/21)) ([9d3e5b2](https://github.com/lezli01/anal/commit/9d3e5b26d4bf66992e410ce73b778d0b3ac44f59))
+
+
+### Bug Fixes
+
+* **unused_source_file:** follow conditional-URI branches when computing reachability ([f7c1bb1](https://github.com/lezli01/anal/commit/f7c1bb1aed0ace91c991677cdc1694e1d4f4bcd9))
+* **unused_source_file:** follow conditional-URI branches when computing reachability ([#23](https://github.com/lezli01/anal/issues/23)) ([ff720f2](https://github.com/lezli01/anal/commit/ff720f2fe262986b816d8e5b0363afde05a8114e))
+
 ## [0.3.4](https://github.com/lezli01/anal/compare/v0.3.3...v0.3.4) (2026-05-27)
 
 
