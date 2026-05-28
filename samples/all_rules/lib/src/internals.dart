@@ -26,3 +26,31 @@ void usedPublicTopLevel() {}
 // global reference set, so the call below keeps `keptAliveByExcludedRef`
 // alive — without that behavior, this would be a P11-shaped positive.
 void keptAliveByExcludedRef() {}
+
+// (N22) Constructors of a `@freezed`-annotated class. `package:freezed`'s
+// code generator emits boilerplate constructors — a private generative
+// `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one
+// named factory per union case — that are only invoked from generated
+// `*.freezed.dart` part files. Consumers of `anal` typically run the
+// rule before code generation has happened, so the AST shows those
+// constructors as unreferenced. The rule recognises freezed-related
+// annotations on the enclosing class and skips every constructor
+// candidate of such a class.
+//
+// The sample declares a stub `freezed` identifier locally instead of
+// depending on `package:freezed_annotation`: the exemption matches the
+// annotation by simple name and the rule does not inspect the
+// annotation's resolved element, so pulling in the real package (and
+// its `build_runner` transitive dependency) would be pure overhead.
+// The constructor-invocation form (`@Freezed()`) is covered by the
+// rule's unit tests rather than here so the sample's stub does not need
+// to declare a `Freezed` class whose constructor would itself become a
+// constructor candidate.
+const freezed = Object();
+
+@freezed
+class FreezedSample {
+  FreezedSample._();
+  factory FreezedSample() => throw UnimplementedError();
+  factory FreezedSample.named() => throw UnimplementedError();
+}

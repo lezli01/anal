@@ -64,15 +64,15 @@ samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_functio
 samples/unused_function/lib/unused_function_sample.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:205:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:208:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:211:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:214:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:217:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:224:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:278:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:334:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:355:7 • [warning] unused_function: The method "foo" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:216:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:219:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:222:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:225:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:228:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:235:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:289:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:345:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:366:7 • [warning] unused_function: The method "foo" is declared but never used.
 ```
 
 (Line / column numbers refer to the file named in each line.)
@@ -120,6 +120,7 @@ samples/unused_function/lib/unused_function_sample.dart:355:7 • [warning] unus
 | `N19` | `A.new` reached through `B`'s `super.x` forwarding (`class B extends A { const B({super.x}); }` plus `const B(x: 1)`) | Super-parameter forwarding (Dart 2.17+) produces no `SuperConstructorInvocation` AST node — the forwarding is expressed only through the `super.x` parameter. The rule reads the implicit super-constructor target off the constructor element and records it as a use, so `A`'s constructor must NOT be flagged. Also covers classes that declare no constructor of their own: the synthetic default constructor implicitly invokes super, and the `visitClassDeclaration` hook records that super target. |
 | `N20` | `Route`'s `const Route(this.path)` constructor on a parameterised enum (`enum Route { home('/'), settings('/settings'); const Route(this.path); final String path; }` plus `Route.home.path`) | Each enum-value declaration invokes the enum's constructor at const-evaluation time, but the AST does NOT model that as an `InstanceCreationExpression` / `ConstructorName` — the call is implicit in the `EnumConstantDeclaration` node and only reachable via `node.constructorElement`. The new `visitEnumConstantDeclaration` hook records that target, so the constructor must NOT be flagged. |
 | `N21` | `keptAliveByExcludedRef` in `lib/src/internals.dart` is referenced only from the excluded `lib/src/refs.g.dart` (the runner is invoked with `--exclude '*.g.dart'`) | Excluded files are filtered out of the *reportable* set but still parsed by the frame, so their references flow into the cross-file rule's global reference set. The call in `refs.g.dart` keeps `keptAliveByExcludedRef` alive — without the excluded-files-as-references behavior, this public top-level function in `lib/src/` would be a P11-shaped positive. The excluded file's own private members (e.g. `_refUsage`) are likewise not flagged because the file is not in `reportableFilePaths`. |
+| `N22` | Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced even though they will be reached from generated output. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate of such a class. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

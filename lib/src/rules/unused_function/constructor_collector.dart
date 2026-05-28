@@ -22,6 +22,14 @@ part of '../unused_function_rule.dart';
 /// sources typically do not pull in `package:mocktail` as a resolved
 /// dependency. See [_enclosingDeclaresNoSuchMethod].
 ///
+/// Every constructor of a [ClassDeclaration] whose metadata carries a
+/// `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, or
+/// `@FreezedUnion(...)` annotation is likewise skipped — the boilerplate
+/// constructors `package:freezed` expects (private generative `Foo._()`,
+/// unnamed forwarding factory, and one named factory per union case)
+/// are only invoked from generated `*.freezed.dart` parts, which are
+/// usually absent when the rule runs. See [_hasFreezedAnnotation].
+///
 /// To avoid duplicate noise with `unused_class`, the rule's dispatch
 /// site additionally skips a constructor candidate when its enclosing
 /// class element is itself absent from the global reference index —
@@ -59,6 +67,7 @@ class _ConstructorCollector implements _UnusedFunctionCandidateCollector {
         if (enclosing != null && _enclosingDeclaresNoSuchMethod(enclosing)) {
           continue;
         }
+        if (_hasFreezedAnnotation(declaration.metadata)) continue;
         for (final member in members) {
           if (member is! ConstructorDeclaration) continue;
           final candidate = _candidateFor(member, classNameToken);

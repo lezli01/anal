@@ -114,6 +114,22 @@ part 'unused_function/top_level_function_collector.dart';
 ///   member of an analyzed library that imports `dart:mirrors` is
 ///   treated as potentially used. The rule skips member and
 ///   constructor candidates declared in such libraries.
+/// * **Constructors of freezed-annotated classes.** When a
+///   [ClassDeclaration] carries a `@freezed`, `@Freezed(...)`,
+///   `@unfreezed`, `@Unfreezed(...)`, or `@FreezedUnion(...)`
+///   annotation (or the prefixed-identifier form,
+///   `@freezed_annotation.freezed` / `@freezed_annotation.Freezed`),
+///   `package:freezed`'s code generator stamps the class with
+///   boilerplate constructors — a private generative `Foo._()`, an
+///   unnamed factory forwarding to a generated `_$Foo`, and one named
+///   factory per union case — that are only invoked from generated
+///   code (typically a `*.freezed.dart` part file). Consumers of
+///   `anal` often run the rule before code generation has happened,
+///   so the source AST shows those constructors as unreferenced even
+///   though they will be reached from generated output. The rule
+///   skips every constructor candidate of such a class to avoid that
+///   false-positive churn without requiring the generated parts to
+///   be present.
 /// * **Units stamped with the generated-code marker
 ///   `// ignore_for_file: type=lint`.** Build-time codegen tools —
 ///   most prominently Flutter's `gen_l10n` for `output-localization-file`
@@ -484,6 +500,44 @@ bool _overridesReachableSupertypeMember(
 /// this helper, so `Set<Element>.contains` matches a generic call site
 /// against the declared candidate.
 Element _declaredElement(Element element) => element.baseElement;
+
+/// Whether [metadata] contains a freezed annotation that applies to the
+/// enclosing class.
+///
+/// Recognises both the bare-identifier form (`@freezed`, `@unfreezed`)
+/// and the constructor-invocation form (`@Freezed(...)`, `@Unfreezed(...)`,
+/// `@FreezedUnion(...)`), as well as the prefixed forms
+/// (`@freezed_annotation.freezed`, `@freezed_annotation.Freezed`).
+///
+/// `package:freezed`'s code generator stamps the annotated class with
+/// boilerplate constructors — a private generative `Foo._()`, an
+/// unnamed factory that forwards to a generated `_$Foo`, and one named
+/// factory per union case — that are only invoked from generated code
+/// (typically `*.freezed.dart` part files). Because consumers of `anal`
+/// often run the rule before code generation has happened, those
+/// constructors look unreferenced in the source AST even though they
+/// will be reached from generated output. Skipping them at the
+/// dispatch site avoids that false-positive churn without needing the
+/// generated parts to be present.
+bool _hasFreezedAnnotation(NodeList<Annotation> metadata) {
+  for (final annotation in metadata) {
+    final identifier = annotation.name;
+    final simpleName = identifier is SimpleIdentifier
+        ? identifier.name
+        : identifier is PrefixedIdentifier
+        ? identifier.identifier.name
+        : '';
+    switch (simpleName) {
+      case 'freezed':
+      case 'Freezed':
+      case 'unfreezed':
+      case 'Unfreezed':
+      case 'FreezedUnion':
+        return true;
+    }
+  }
+  return false;
+}
 
 bool _hasVmEntryPointPragma(NodeList<Annotation> metadata) {
   for (final annotation in metadata) {

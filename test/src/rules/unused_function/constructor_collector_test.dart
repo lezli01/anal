@@ -200,6 +200,140 @@ void main() {
       expect(diagnostics, isEmpty);
     });
   });
+
+  group('UnusedFunctionRule freezed exemption', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync(
+        'unused_function_freezed_exemption_test_',
+      );
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    Future<List<Diagnostic>> runRule(
+      String content, {
+      String fileName = 'fixture.dart',
+    }) async {
+      final fixture = File(p.join(tempDir.path, fileName));
+      fixture.writeAsStringSync(content);
+
+      final dartFiles = <String>[
+        for (final entity in tempDir.listSync(recursive: true))
+          if (entity is File && entity.path.endsWith('.dart'))
+            p.normalize(p.absolute(entity.path)),
+      ]..sort();
+
+      final collection = AnalysisContextCollection(
+        includedPaths: dartFiles,
+        sdkPath: _resolveSdkPath(),
+      );
+
+      final units = <ResolvedUnitResult>[];
+      for (final path in dartFiles) {
+        final session = collection.contextFor(path).currentSession;
+        final result = await session.getResolvedUnit(path);
+        expect(result, isA<ResolvedUnitResult>());
+        units.add(result as ResolvedUnitResult);
+      }
+
+      final context = MultiFileAnalysisContext(
+        units: units,
+        analyzedFilePaths: <String>{for (final u in units) u.path},
+      );
+      return const UnusedFunctionRule().analyze(context).toList();
+    }
+
+    test('@freezed-annotated class: unnamed factory, private _, and named '
+        'factory are not flagged', () async {
+      final diagnostics = await runRule('''
+const freezed = Object();
+
+class Foo {
+  Foo._();
+  factory Foo() = Foo._;
+  factory Foo.named() = Foo._;
+}
+
+@freezed
+class FreezedFoo {
+  FreezedFoo._();
+  factory FreezedFoo() = FreezedFoo._;
+  factory FreezedFoo.named() = FreezedFoo._;
+}
+void main() {}
+''');
+      // The non-freezed `Foo` is a noise control to keep the fixture
+      // exercising the rule end-to-end. The freezed assertions below
+      // are the actual subject of the test.
+      for (final diagnostic in diagnostics) {
+        if (diagnostic.message.contains('FreezedFoo')) {
+          fail('freezed class constructor flagged: ${diagnostic.message}');
+        }
+      }
+    });
+
+    test('@Freezed() constructor-invocation form is recognized', () async {
+      final diagnostics = await runRule('''
+class Freezed {
+  const Freezed({bool? unionKey});
+}
+
+@Freezed()
+class FreezedFoo {
+  FreezedFoo._();
+  factory FreezedFoo() = FreezedFoo._;
+  factory FreezedFoo.named() = FreezedFoo._;
+}
+void main() {}
+''');
+      for (final diagnostic in diagnostics) {
+        if (diagnostic.message.contains('FreezedFoo')) {
+          fail('@Freezed() class constructor flagged: ${diagnostic.message}');
+        }
+      }
+    });
+
+    test('@unfreezed is recognized', () async {
+      final diagnostics = await runRule('''
+const unfreezed = Object();
+
+@unfreezed
+class UnfreezedFoo {
+  UnfreezedFoo._();
+  factory UnfreezedFoo() = UnfreezedFoo._;
+  factory UnfreezedFoo.named() = UnfreezedFoo._;
+}
+void main() {}
+''');
+      for (final diagnostic in diagnostics) {
+        if (diagnostic.message.contains('UnfreezedFoo')) {
+          fail('@unfreezed class constructor flagged: ${diagnostic.message}');
+        }
+      }
+    });
+
+    test('non-freezed class still flags an unused named constructor '
+        '(negative control)', () async {
+      final diagnostics = await runRule('''
+class PlainFoo {
+  PlainFoo();
+  PlainFoo.unused();
+}
+void main() {
+  PlainFoo();
+}
+''');
+      expect(diagnostics, hasLength(1));
+      expect(diagnostics.single.message, contains('unused'));
+      expect(diagnostics.single.message, contains('constructor'));
+    });
+  });
 }
 
 String? _resolveSdkPath() {

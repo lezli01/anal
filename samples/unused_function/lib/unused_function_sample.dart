@@ -198,6 +198,17 @@ void main() {
   // alive — without the excluded-files-as-references behavior, this
   // would be a P11-shaped positive. No code lives here for N21; the
   // exercise is the cross-library reference from the excluded file.
+
+  // (N22) `FreezedSample` (declared in `lib/src/internals.dart`) carries
+  // a `@freezed` annotation. `package:freezed`'s code generator stamps
+  // such classes with boilerplate constructors — a private generative
+  // `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and
+  // named factories per union case — that are only invoked from
+  // generated `*.freezed.dart` part files. Those parts are usually
+  // absent when the rule runs, so the source AST shows the constructors
+  // as unreferenced. The rule recognises the freezed-related annotations
+  // and skips every constructor candidate of the annotated class; no
+  // code lives here for N22.
 }
 
 class Service {

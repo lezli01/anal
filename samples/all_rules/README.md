@@ -99,15 +99,15 @@ samples/all_rules/lib/unused_class_demo.dart:24:16 • [warning] unused_class: T
 samples/all_rules/lib/unused_function_demo.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
 samples/all_rules/lib/unused_function_demo.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
 samples/all_rules/lib/unused_function_demo.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:207:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:210:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:213:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:216:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:219:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:226:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:280:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:336:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
-samples/all_rules/lib/unused_function_demo.dart:357:7 • [warning] unused_function: The method "foo" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:218:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:221:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:224:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:227:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:230:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:237:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:291:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:347:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
+samples/all_rules/lib/unused_function_demo.dart:368:7 • [warning] unused_function: The method "foo" is declared but never used.
 ```
 
 (Diagnostic ordering depends on the runner's file iteration; the set of
@@ -162,6 +162,7 @@ samples/all_rules/lib/unused_function_demo.dart:357:7 • [warning] unused_funct
 | `N18`| `Holder<int>.value(0)`                       | Factory constructor on a generic sealed class invoked with an explicit type argument resolves to a substituted view of the declared constructor; the same `baseElement` projection lets the declared factory match the call site. |
 | `N19`| `A.new` reached through `B`'s `super.x` forwarding (`class B extends A { const B({super.x}); }` plus `const B(x: 1)`) | Super-parameter forwarding (Dart 2.17+) produces no `SuperConstructorInvocation` AST node — the forwarding is expressed only through the `super.x` parameter. The rule reads the implicit super-constructor target off the constructor element and records it as a use, so `A`'s constructor must NOT be flagged. The same hook covers `class X extends Y {}` with a synthetic default constructor that implicitly invokes `Y.new`. |
 | `N20`| `keptAliveByExcludedRef` in `lib/src/internals.dart` is referenced only from the excluded `lib/src/refs.g.dart` (the runner is invoked with `--exclude '*.g.dart'`) | Excluded files are filtered out of the *reportable* set but still parsed by the frame, so their references flow into the cross-file rule's global reference set. The call in `refs.g.dart` keeps `keptAliveByExcludedRef` alive — without the excluded-files-as-references behavior, this public top-level function in `lib/src/` would be a P11-shaped positive. The excluded file's own private members (e.g. `_refUsage`) are likewise not flagged because the file is not in `reportableFilePaths`. |
+| `N22`| Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
 
 Each positive case has a used twin that exercises the negative path for the
 same kind:

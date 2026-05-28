@@ -33,7 +33,15 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // `Route.home.path`): each enum-value declaration invokes the enum's
   // constructor through `EnumConstantDeclaration.constructorElement`,
   // which the rule's `visitEnumConstantDeclaration` hook records as a
-  // use — so `Route`'s constructor MUST NOT be flagged. The companion
+  // use — so `Route`'s constructor MUST NOT be flagged. N22 exercises
+  // the freezed exemption: `@freezed`-annotated `FreezedSample` in
+  // lib/src/internals.dart declares a private generative `_()` plus
+  // unnamed and named factory constructors that are never referenced.
+  // The rule recognises the freezed-related annotations on the
+  // enclosing class and skips every constructor candidate, so none of
+  // those constructors contribute a diagnostic. The constructor-
+  // invocation form (`@Freezed()`) is covered by the rule's unit tests
+  // rather than here. The companion
   // lib/src/l10n/l10n.dart and lib/src/l10n/l10n_en.dart mock the
   // output of `flutter gen-l10n` and are stamped with the de-facto
   // generated-code marker `// ignore_for_file: type=lint`; every
@@ -86,7 +94,12 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // home('/'), settings('/settings'); const Route(this.path); final String
   // path; }` plus a read of `Route.home.path` — each enum-value declaration
   // invokes `Route`'s constructor through
-  // `EnumConstantDeclaration.constructorElement`), and the
+  // `EnumConstantDeclaration.constructorElement`), the freezed
+  // exemption (N22: `@freezed`-annotated `FreezedSample` in
+  // lib/src/internals.dart — every constructor of a freezed-annotated
+  // class is skipped because `package:freezed`'s code generator drives
+  // those constructors from generated `*.freezed.dart` parts that are
+  // typically absent when the rule runs), and the
   // `// ignore_for_file: type=lint` generated-code marker exemption for
   // unused_function (lib/unused_function_demo.dart, lib/src/mirrors_user.dart, and
   // lib/src/l10n/l10n.dart + lib/src/l10n/l10n_en.dart); object patterns,
