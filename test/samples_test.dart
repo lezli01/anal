@@ -41,11 +41,27 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // samples/unused_source_file: README documents a single unused_source_file
   // diagnostic pointing at lib/src/orphan.dart.
   'unused_source_file': [('unused_source_file', 'lib/src/orphan.dart')],
-  // samples/all_rules: README documents one diagnostic per built-in rule.
+  // samples/all_rules: README documents sixteen diagnostics across all three
+  // built-in rules — eleven unused_function (P11 in lib/src/internals.dart and
+  // P1..P10 in lib/unused_function_demo.dart), four unused_class (P1..P4 in
+  // lib/unused_class_demo.dart), and one unused_source_file (lib/src/orphan.dart).
   'all_rules': [
-    ('unused_source_file', 'lib/src/orphan.dart'),
-    ('unused_class', 'lib/unused_class_demo.dart'),
+    ('unused_function', 'lib/src/internals.dart'),
     ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
+    ('unused_class', 'lib/unused_class_demo.dart'),
+    ('unused_class', 'lib/unused_class_demo.dart'),
+    ('unused_class', 'lib/unused_class_demo.dart'),
+    ('unused_class', 'lib/unused_class_demo.dart'),
+    ('unused_source_file', 'lib/src/orphan.dart'),
   ],
 };
 
@@ -55,7 +71,7 @@ const Map<String, List<String>> _sampleIncludeDirs = {
   'unused_function': ['lib'],
   'unused_class': ['lib'],
   'unused_source_file': ['lib', 'bin'],
-  'all_rules': ['lib'],
+  'all_rules': ['lib', 'bin'],
 };
 
 /// Samples whose entry points use a `package:` self-import. For these we
