@@ -31,7 +31,10 @@ class _ConstructorCollector implements _UnusedFunctionCandidateCollector {
   const _ConstructorCollector();
 
   @override
-  Iterable<_Candidate> collect(ResolvedUnitResult unit) sync* {
+  Iterable<_Candidate> collect(
+    ResolvedUnitResult unit,
+    _CollectorContext context,
+  ) sync* {
     for (final declaration in unit.unit.declarations) {
       if (declaration is ClassDeclaration) {
         // `ClassDeclaration.namePart` requires the experimental

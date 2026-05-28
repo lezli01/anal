@@ -26,7 +26,10 @@ class _ExtensionMemberCollector implements _UnusedFunctionCandidateCollector {
   const _ExtensionMemberCollector();
 
   @override
-  Iterable<_Candidate> collect(ResolvedUnitResult unit) sync* {
+  Iterable<_Candidate> collect(
+    ResolvedUnitResult unit,
+    _CollectorContext context,
+  ) sync* {
     for (final declaration in unit.unit.declarations) {
       if (declaration is! ExtensionDeclaration) continue;
       // `ExtensionDeclaration.name` is `Token?` — unnamed extensions

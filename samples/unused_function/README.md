@@ -46,20 +46,21 @@ fvm dart run anal samples/unused_function/lib
 
 ## Expected output
 
-Eleven `unused_function` diagnostics — and nothing else:
+Twelve `unused_function` diagnostics — and nothing else:
 
 ```
 samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_function: The top-level function "unusedPublicTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:122:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:125:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:128:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:131:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:134:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:141:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:195:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:143:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:146:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:149:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:152:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:155:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:162:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:216:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:272:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
 ```
 
 (Line / column numbers refer to the file named in each line.)
@@ -79,6 +80,7 @@ samples/unused_function/lib/unused_function_sample.dart:195:10 • [warning] unu
 | `P9`  | local `unusedLocal` inside `Service.usedMethod` | Local function with no reference in its enclosing body.                           |
 | `P10` | `StringX.unusedExtension`                   | Method on a public extension that is never invoked.                                   |
 | `P11` | `unusedPublicTopLevel` in `lib/src/internals.dart` | Public top-level function in `lib/src/`. Files under `lib/src/` are the package's internal surface, so public top-level declarations there are candidates. |
+| `P12` | `IsolatedSub.overrideButUnreachable`         | `@override` whose inherited supertype member is in the analyzed set but itself unreferenced — the override-of-reachable exemption does not apply, so the method is still flagged. |
 
 ### Negative cases (MUST NOT be flagged)
 
@@ -96,6 +98,8 @@ samples/unused_function/lib/unused_function_sample.dart:195:10 • [warning] unu
 | `N10` | every member of `NoSuchMethodHolder`                       | The class declares its own `noSuchMethod`, which can intercept any call by name at runtime — the rule skips every member and the constructor. |
 | `N11` | every member of `MirrorsHostedService` in `lib/src/mirrors_user.dart` | The library imports `dart:mirrors`, which can invoke arbitrary members by name — the rule skips every member and constructor declared in the unit. |
 | `N12` | every abstract getter on `L` in `lib/src/l10n/l10n.dart` and every concrete `@override` getter on `LEn` in `lib/src/l10n/l10n_en.dart` | Each file is stamped with the de-facto Dart "this is generated" marker `// ignore_for_file: type=lint` at the top, which `flutter gen-l10n` writes into every file it emits — the rule treats the marker as a unit-level exemption and skips every candidate collector for the unit. |
+| `N13` | `Greeter.build` extending `StatelessWidgetStub` | `@override` of an in-repo abstract supertype member that is itself referenced through `this` from the base class (`render()` calls `build()`) — the supertype member is in the global reference set, so the override is treated as a use. |
+| `N14` | `Sub.hook` extending `Base`                  | `@override` of an in-repo abstract supertype member that is invoked from the base class (`Base.run` calls `hook()` through implicit `this`) — same override-of-reachable exemption as N13. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

@@ -14,15 +14,17 @@ import 'package:path/path.dart' as p;
 /// This fixture doubles as a machine-checked summary of each sample's
 /// README "Expected diagnostics" section — keep them in sync.
 const Map<String, List<(String, String)>> _expectedDiagnostics = {
-  // samples/unused_function: README documents eleven unused_function
-  // diagnostics — one in lib/src/internals.dart (P11) and ten in
-  // lib/unused_function_sample.dart (P1..P10). The companion
+  // samples/unused_function: README documents twelve unused_function
+  // diagnostics — one in lib/src/internals.dart (P11) and eleven in
+  // lib/unused_function_sample.dart (P1..P10 plus P12, the override-of-
+  // unreferenced-supertype-member positive case). The companion
   // lib/src/l10n/l10n.dart and lib/src/l10n/l10n_en.dart mock the output
   // of `flutter gen-l10n` and are stamped with the de-facto generated-code
   // marker `// ignore_for_file: type=lint`; every candidate in those units
   // is exempt from the rule, so they MUST NOT contribute any diagnostics.
   'unused_function': [
     ('unused_function', 'lib/src/internals.dart'),
+    ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
@@ -49,9 +51,10 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // ordinary import, `part`, every `if (...)` configuration of a conditional
   // import, and a deferred import respectively — and must NOT be flagged.
   'unused_source_file': [('unused_source_file', 'lib/src/orphan.dart')],
-  // samples/all_rules: README documents sixteen diagnostics across all three
-  // built-in rules — eleven unused_function (P11 in lib/src/internals.dart and
-  // P1..P10 in lib/unused_function_demo.dart), four unused_class (P1..P4 in
+  // samples/all_rules: README documents seventeen diagnostics across all three
+  // built-in rules — twelve unused_function (P11 in lib/src/internals.dart and
+  // P1..P10 plus the override-of-unreferenced-supertype P12 in
+  // lib/unused_function_demo.dart), four unused_class (P1..P4 in
   // lib/unused_class_demo.dart), and one unused_source_file (lib/src/orphan.dart).
   // The combined sample also exercises the per-rule feature-aware negative cases:
   // object patterns, record literals + record patterns, cascades, callable-object
@@ -66,6 +69,7 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // cases must NOT be flagged.
   'all_rules': [
     ('unused_function', 'lib/src/internals.dart'),
+    ('unused_function', 'lib/unused_function_demo.dart'),
     ('unused_function', 'lib/unused_function_demo.dart'),
     ('unused_function', 'lib/unused_function_demo.dart'),
     ('unused_function', 'lib/unused_function_demo.dart'),

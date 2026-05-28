@@ -108,6 +108,14 @@ record literals and record patterns (`(obj.getter,)` / `final (g,) = …`),
 cascade sections (`obj..foo()`), and the implicit `.call` invocation on
 callable objects (`instance()` resolves to `instance.call()`), so members
 reached only through any of those forms are correctly counted as used.
+Overrides of reachable supertype members are treated as uses: when a
+`MethodDeclaration` carries `@override` and the inherited supertype
+member is either declared outside the analyzed unit set (`dart:*`,
+`package:flutter`, any package outside the run) or is itself in the
+global reference set, the override is exempt. This applies uniformly to
+methods, operators, getters, and setters and covers framework callback
+overrides (`State.build`, `Object.toString`, `operator ==`, …) as well
+as in-repo abstract-base / concrete-subtype dispatch.
 
 Deliberately not flagged:
 

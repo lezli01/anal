@@ -115,6 +115,27 @@ void main() {
   // (N10) `NoSuchMethodHolder` declares `noSuchMethod`, so every member of
   // the class is exempt from the rule even though none are referenced.
   NoSuchMethodHolder();
+
+  // (N13) `Greeter.build` is reached through `StatelessWidgetStub.render`,
+  // which calls `build()` through an implicit `this`. The supertype's
+  // abstract `build` lands in the global reference set via that call
+  // site, so the `@override` on the concrete subclass is exempt and
+  // must NOT be flagged.
+  // ignore: unused_local_variable
+  final greeted = Greeter().render();
+
+  // (N14) `Sub.hook` is reached through `Base.run`, which calls
+  // `hook()` through an implicit `this`. The supertype's abstract
+  // `hook` lands in the global reference set via that call site, so
+  // the `@override` on the concrete subclass is exempt.
+  Sub().run();
+
+  // (P12) `IsolatedSub` is instantiated so it is not flagged by
+  // `unused_class`; its `@override` of `IsolatedBase.overrideButUnreachable`
+  // is never called, and the supertype member is itself unreferenced,
+  // so the override below stays flagged.
+  // ignore: unused_local_variable
+  final isolated = IsolatedSub();
 }
 
 class Service {
@@ -194,4 +215,59 @@ class NoSuchMethodHolder {
 extension StringX on String {
   String unusedExtension() => this;
   String usedExtension() => this;
+}
+
+// === Override-of-reachable supertype member ===
+//
+// These cases exercise the "@override of a reachable supertype member
+// is a use" exemption. The exemption fires when the inherited supertype
+// member is either declared outside the analyzed unit set (dart:*,
+// package:flutter, etc.) or itself present in the global reference set.
+
+// (N13) An in-repo abstract base that references its own abstract
+// member through implicit `this`. `StatelessWidgetStub.build` lands in
+// the global reference set via the unqualified `build()` call inside
+// `render()`, so the concrete `Greeter.build` override is treated as a
+// use and must NOT be flagged.
+abstract class StatelessWidgetStub {
+  String build();
+  String render() => 'wrapped(${build()})';
+}
+
+class Greeter extends StatelessWidgetStub {
+  @override
+  String build() => 'hello';
+}
+
+// (N14) Abstract base / concrete subtype dispatch on an in-repo type.
+// `Base.hook` is invoked from `Base.run` through implicit `this`, so
+// the supertype's abstract `hook` lands in the global reference set;
+// `Sub.hook` therefore must NOT be flagged.
+abstract class Base {
+  void hook();
+  void run() {
+    hook();
+  }
+}
+
+class Sub extends Base {
+  @override
+  void hook() {}
+}
+
+// (P12) `@override` targets an in-repo supertype member that is itself
+// unreferenced — so the override stays flagged. The supertype member
+// is declared `external` so the rule does not flag the supertype
+// (which would otherwise also be reported); the override below
+// remains a candidate and is flagged because its inherited element is
+// in the analyzed set but not in the global reference set. This
+// positive case guarantees the override-of-reachable exemption does
+// not silently widen to all `@override` members.
+class IsolatedBase {
+  external void overrideButUnreachable();
+}
+
+class IsolatedSub extends IsolatedBase {
+  @override
+  void overrideButUnreachable() {}
 }

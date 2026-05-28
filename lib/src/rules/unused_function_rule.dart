@@ -73,6 +73,19 @@ part 'unused_function/top_level_function_collector.dart';
 /// Additional dispatch-site exemptions cover language features that
 /// can reach members through reflection or dynamic dispatch:
 ///
+/// * **Overrides of reachable supertype members.** When a
+///   [MethodDeclaration] carries an `@override` annotation and the
+///   inherited supertype member is either declared outside the
+///   analyzed unit set (e.g. `dart:*`, `package:flutter`, any package
+///   that did not make it into the [MultiFileAnalysisContext]) or is
+///   itself present in the global reference set, the rule treats the
+///   override as a "use" of the candidate. This catches framework
+///   callback overrides (`State.build`, `Widget.createElement`, etc.)
+///   as well as in-repo abstract base / concrete subtype dispatch where
+///   the base member is statically referenced. The check uses
+///   [InterfaceElement.getInheritedMember] to resolve the overridden
+///   member, so equivalent reasoning applies uniformly to methods,
+///   operators, getters, and setters.
 /// * **`noSuchMethod`-declaring classes/mixins.** When the enclosing
 ///   class or mixin declares its own `noSuchMethod`, every undefined
 ///   call lands in `noSuchMethod` rather than a "no such method"
@@ -152,6 +165,11 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
       _ClassMemberCollector,
     };
 
+    final collectorContext = _CollectorContext(
+      globalReferences: globalReferences,
+      analyzedFilePaths: context.analyzedFilePaths,
+    );
+
     final diagnostics = <Diagnostic>[];
     for (final unit in context.units) {
       if (_unitIsGeneratedTypeLintIgnored(unit.unit)) continue;
@@ -161,7 +179,7 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
             memberCollectors.contains(collector.runtimeType)) {
           continue;
         }
-        for (final candidate in collector.collect(unit)) {
+        for (final candidate in collector.collect(unit, collectorContext)) {
           if (globalReferences.contains(candidate.element)) continue;
           if (_enclosingClassIsUnflaggedUnreferencedPrivate(
             candidate.element,
@@ -326,6 +344,70 @@ bool _membersDeclareNoSuchMethod(Iterable<ClassMember> members) {
   return false;
 }
 
+/// Whether [metadata] contains a bare `@override` annotation.
+///
+/// Used by [_ClassMemberCollector] to decide whether to consult the
+/// `@override`-of-reachable exemption: only annotated declarations are
+/// subject to the supertype-member lookup.
+bool _hasOverrideAnnotation(NodeList<Annotation> metadata) {
+  for (final annotation in metadata) {
+    if (annotation.arguments != null) continue;
+    final identifier = annotation.name;
+    final simpleName = identifier is SimpleIdentifier
+        ? identifier.name
+        : identifier is PrefixedIdentifier
+        ? identifier.identifier.name
+        : '';
+    if (simpleName == 'override') return true;
+  }
+  return false;
+}
+
+/// Whether [declaration]'s `@override` annotation targets a supertype
+/// member that is already reachable in [context].
+///
+/// "Reachable" means either:
+///
+/// * the inherited member is declared outside the analyzed unit set
+///   (e.g. `dart:*`, `package:flutter`, any package that is not part of
+///   the [MultiFileAnalysisContext]) — the rule can never see its
+///   reference sites, so it must conservatively treat the override as a
+///   use; or
+/// * the inherited member is itself present in
+///   [_CollectorContext.globalReferences], i.e. some site in the
+///   analyzed set already references the supertype member by name. The
+///   override services the same dispatch and is therefore reachable
+///   transitively.
+///
+/// The supertype lookup is performed via
+/// [InterfaceElement.getInheritedMember], which uses the inheritance
+/// graph to find the most-specific overridden member. Equivalent
+/// reasoning applies to methods, operators, getters, and setters
+/// because [Name.forElement] encodes setter names with a trailing `=`
+/// and operator names with their canonical token form.
+///
+/// Returns `false` for declarations that do not carry `@override`, that
+/// are not declared inside an [InterfaceElement], or whose inherited
+/// member cannot be resolved.
+bool _overridesReachableSupertypeMember(
+  MethodDeclaration declaration,
+  _CollectorContext context,
+) {
+  if (!_hasOverrideAnnotation(declaration.metadata)) return false;
+  final element = declaration.declaredFragment?.element;
+  if (element == null) return false;
+  final enclosing = element.enclosingElement;
+  if (enclosing is! InterfaceElement) return false;
+  final name = Name.forElement(element);
+  if (name == null) return false;
+  final inherited = enclosing.getInheritedMember(name);
+  if (inherited == null) return false;
+  final inheritedSource =
+      inherited.firstFragment.libraryFragment.source.fullName;
+  if (!context.analyzedFilePaths.contains(inheritedSource)) return true;
+  return context.globalReferences.contains(inherited);
+}
+
 bool _hasVmEntryPointPragma(NodeList<Annotation> metadata) {
   for (final annotation in metadata) {
     final identifier = annotation.name;
@@ -354,7 +436,35 @@ bool _hasVmEntryPointPragma(NodeList<Annotation> metadata) {
 /// then test against the global reference set.
 abstract class _UnusedFunctionCandidateCollector {
   /// Yields the candidates the implementation discovered in [unit].
-  Iterable<_Candidate> collect(ResolvedUnitResult unit);
+  ///
+  /// [context] gives collectors access to the global reference set and
+  /// the set of analyzed file paths, used by [_ClassMemberCollector] to
+  /// exempt `@override` members whose inherited supertype member is
+  /// either declared outside the analyzed unit set or itself reachable.
+  Iterable<_Candidate> collect(
+    ResolvedUnitResult unit,
+    _CollectorContext context,
+  );
+}
+
+/// Cross-collector context bundle: the global reference set built by
+/// [_GlobalReferenceCollector] and the analyzed-files path set carried
+/// on the [MultiFileAnalysisContext].
+///
+/// Plumbed through every collector's [`collect`][_UnusedFunctionCandidateCollector.collect]
+/// invocation so the `@override`-of-reachable exemption inside
+/// [_ClassMemberCollector] can resolve the inherited supertype member
+/// and decide whether it counts as "reachable" — either because its
+/// declaring source is outside [analyzedFilePaths] or because the
+/// element is present in [globalReferences].
+class _CollectorContext {
+  final Set<Element> globalReferences;
+  final Set<String> analyzedFilePaths;
+
+  const _CollectorContext({
+    required this.globalReferences,
+    required this.analyzedFilePaths,
+  });
 }
 
 /// A declaration the rule may flag if its [element] is not referenced.

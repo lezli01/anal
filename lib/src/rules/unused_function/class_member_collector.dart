@@ -27,12 +27,22 @@ part of '../unused_function_rule.dart';
 /// reference index — `unused_class` already flags that type, and
 /// re-flagging every member of it would just repeat the report.
 ///
+/// An `@override` member is additionally skipped when its inherited
+/// supertype member is either declared outside the analyzed unit set
+/// or is itself reachable; see [_overridesReachableSupertypeMember]
+/// for the exact rules. This catches framework callback overrides
+/// (`State.build`, `Object.toString`, etc.) as well as in-repo
+/// abstract-base / concrete-subtype dispatch.
+///
 /// The diagnostic anchor is the member's name [Token].
 class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
   const _ClassMemberCollector();
 
   @override
-  Iterable<_Candidate> collect(ResolvedUnitResult unit) sync* {
+  Iterable<_Candidate> collect(
+    ResolvedUnitResult unit,
+    _CollectorContext context,
+  ) sync* {
     for (final declaration in unit.unit.declarations) {
       if (declaration is ClassDeclaration) {
         // `body` is the analyzer 10.x replacement but is gated on the
@@ -40,32 +50,39 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
         // always-available `members` accessor is used. Mirrors the
         // pattern in `constructor_collector.dart`.
         // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members);
+        yield* _candidatesFor(declaration.members, context);
       } else if (declaration is MixinDeclaration) {
         // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members);
+        yield* _candidatesFor(declaration.members, context);
       } else if (declaration is EnumDeclaration) {
         // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members);
+        yield* _candidatesFor(declaration.members, context);
       } else if (declaration is ExtensionTypeDeclaration) {
         // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members);
+        yield* _candidatesFor(declaration.members, context);
       }
     }
   }
 
-  Iterable<_Candidate> _candidatesFor(Iterable<ClassMember> members) sync* {
+  Iterable<_Candidate> _candidatesFor(
+    Iterable<ClassMember> members,
+    _CollectorContext context,
+  ) sync* {
     if (_membersDeclareNoSuchMethod(members)) return;
     for (final member in members) {
       if (member is! MethodDeclaration) continue;
-      final candidate = _candidateFor(member);
+      final candidate = _candidateFor(member, context);
       if (candidate != null) yield candidate;
     }
   }
 
-  _Candidate? _candidateFor(MethodDeclaration declaration) {
+  _Candidate? _candidateFor(
+    MethodDeclaration declaration,
+    _CollectorContext context,
+  ) {
     if (declaration.externalKeyword != null) return null;
     if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+    if (_overridesReachableSupertypeMember(declaration, context)) return null;
     final element = declaration.declaredFragment?.element;
     if (element == null) return null;
     return _Candidate(
