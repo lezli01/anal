@@ -12,20 +12,34 @@ abstract class Reporter {
   void report(List<Diagnostic> diagnostics);
 }
 
-/// A [Reporter] that writes one human-readable line per diagnostic to an
-/// [IOSink].
+/// A [Reporter] that writes diagnostics to an [IOSink], grouped by file.
 ///
-/// Each diagnostic is rendered as:
+/// Diagnostics are bucketed by `location.filePath` while preserving the order
+/// in which each file first appears in the input, and within each file the
+/// input order of diagnostics is kept verbatim (the reporter does not sort
+/// by line, column, or severity). Each file path is emitted exactly once as
+/// a header line, followed by one indented line per finding shaped as
+/// `<line>:<column> • [<severity>] <ruleId>: <message>`, where `<severity>`
+/// is the lowercase enum name (`info`, `warning`, `error`). When a finding
+/// carries a non-null [Diagnostic.correction], the correction text is
+/// written on a further-indented continuation line.
+///
+/// An empty diagnostic list produces no output. No ANSI colors are emitted
+/// and no global `stdout` is referenced — output goes exclusively to the
+/// [IOSink] passed to the constructor.
+///
+/// Example output:
 ///
 /// ```
-/// <filePath>:<line>:<column> • [<severity>] <ruleId>: <message>
+/// lib/src/foo.dart
+///   3:7 • [warning] unused_function: Function "foo" is never used.
+///     Remove it or use it.
+///   8:1 • [info] unused_function: Function "bar" is never used.
+/// lib/src/baz.dart
+///   1:1 • [error] _internal: Failed to parse.
 /// ```
-///
-/// where `<severity>` is the lowercase enum name (`info`, `warning`, `error`).
-/// No ANSI colors are emitted and no global `stdout` is referenced — output
-/// goes exclusively to the [IOSink] passed to the constructor.
 class ConsoleReporter implements Reporter {
-  /// Sink that receives one line per diagnostic.
+  /// Sink that receives the grouped diagnostic report.
   final IOSink out;
 
   /// Creates a [ConsoleReporter] that writes to [out].
@@ -33,11 +47,22 @@ class ConsoleReporter implements Reporter {
 
   @override
   void report(List<Diagnostic> diagnostics) {
+    final byFile = <String, List<Diagnostic>>{};
     for (final d in diagnostics) {
-      out.writeln(
-        '${d.location.filePath}:${d.location.line}:${d.location.column}'
-        ' • [${d.severity.name}] ${d.ruleId}: ${d.message}',
-      );
+      (byFile[d.location.filePath] ??= <Diagnostic>[]).add(d);
+    }
+    for (final entry in byFile.entries) {
+      out.writeln(entry.key);
+      for (final d in entry.value) {
+        out.writeln(
+          '  ${d.location.line}:${d.location.column}'
+          ' • [${d.severity.name}] ${d.ruleId}: ${d.message}',
+        );
+        final correction = d.correction;
+        if (correction != null) {
+          out.writeln('    $correction');
+        }
+      }
     }
   }
 }
