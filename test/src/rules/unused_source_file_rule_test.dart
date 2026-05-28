@@ -195,6 +195,72 @@ void main() {
       expect(diagnostics, isEmpty);
     });
 
+    test('a conditional export resolves both branches as reachable', () async {
+      final diagnostics = await runRule({
+        p.join('lib', 'pkg.dart'):
+            "export 'src/mobile_impl.dart'\n"
+            "    if (dart.library.html) 'src/web_impl.dart';\n",
+        p.join('lib', 'src', 'mobile_impl.dart'): 'int mobile() => 1;\n',
+        p.join('lib', 'src', 'web_impl.dart'): 'int web() => 2;\n',
+      });
+      expect(diagnostics, isEmpty);
+    });
+
+    test('a conditional import resolves both branches as reachable', () async {
+      final diagnostics = await runRule({
+        p.join('lib', 'pkg.dart'):
+            "import 'src/mobile_impl.dart'\n"
+            "    if (dart.library.html) 'src/web_impl.dart';\n"
+            'int use() => mobile();\n',
+        p.join('lib', 'src', 'mobile_impl.dart'): 'int mobile() => 1;\n',
+        p.join('lib', 'src', 'web_impl.dart'): 'int web() => 2;\n',
+      });
+      expect(diagnostics, isEmpty);
+    });
+
+    test(
+      'transitive reachability via a conditional branch is honored',
+      () async {
+        final diagnostics = await runRule({
+          p.join('lib', 'pkg.dart'):
+              "export 'src/mobile_impl.dart'\n"
+              "    if (dart.library.html) 'src/web_impl.dart';\n",
+          p.join('lib', 'src', 'mobile_impl.dart'): 'int mobile() => 1;\n',
+          // The web branch is the *only* path that reaches `web_helper.dart`.
+          // The web branch is inactive on the VM, but the rule must still
+          // treat `web_helper.dart` as reachable so neither file is flagged.
+          p.join('lib', 'src', 'web_impl.dart'):
+              "import 'web_helper.dart';\nint web() => helper();\n",
+          p.join('lib', 'src', 'web_helper.dart'): 'int helper() => 3;\n',
+        });
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'a file referenced only by a non-existent conditional URI is still flagged',
+      () async {
+        // `web_impl.dart` is mentioned only in a conditional branch whose
+        // URI does not resolve to any file in the analyzed set (the import
+        // points at a file that was deleted). It must therefore remain an
+        // orphan and be flagged.
+        final diagnostics = await runRule({
+          p.join('lib', 'pkg.dart'):
+              "export 'src/mobile_impl.dart'\n"
+              "    if (dart.library.html) 'src/missing.dart';\n",
+          p.join('lib', 'src', 'mobile_impl.dart'): 'int mobile() => 1;\n',
+          p.join('lib', 'src', 'web_impl.dart'): 'int web() => 2;\n',
+        });
+        expect(diagnostics, hasLength(1));
+        expect(
+          diagnostics.single.location.filePath,
+          p.normalize(
+            p.absolute(p.join(tempDir.path, 'lib', 'src', 'web_impl.dart')),
+          ),
+        );
+      },
+    );
+
     test('generated-file basenames are skipped defensively', () async {
       final diagnostics = await runRule({
         p.join('lib', 'pkg.dart'): '// public surface\n',
