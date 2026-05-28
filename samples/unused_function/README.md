@@ -19,6 +19,10 @@ samples/unused_function/
                                      # (`lib/src/` is the package's internal
                                      # surface, so public declarations there
                                      # are candidates)
+  lib/src/mirrors_user.dart          # negative case for the `dart:mirrors`
+                                     # exemption — every member of every class
+                                     # in a library that imports `dart:mirrors`
+                                     # is exempt from the rule
 ```
 
 ## Run it
@@ -36,16 +40,16 @@ Eleven `unused_function` diagnostics — and nothing else:
 
 ```
 samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_function: The top-level function "unusedPublicTopLevel" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:26:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:29:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:32:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:86:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:89:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:92:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:95:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:98:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:105:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:121:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:27:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:30:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:33:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:120:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:123:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:126:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:129:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:132:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:139:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:193:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
 ```
 
 (Line / column numbers refer to the file named in each line.)
@@ -68,13 +72,19 @@ samples/unused_function/lib/unused_function_sample.dart:121:10 • [warning] unu
 
 ### Negative cases (MUST NOT be flagged)
 
-| Tag  | Where                                | Why the rule skips it                                                                 |
-| ---- | ------------------------------------ | ------------------------------------------------------------------------------------- |
-| `N1` | `publicTopLevel`                     | Public top-level function in a file directly under `lib/` — part of the package's public surface, reachable from outside the analyzed set. |
-| `N2` | `main`                               | The `main` entry point is exempt by name.                                             |
-| `N3` | `_usedPrivate`                       | Referenced as both a direct call and a tear-off in `main`.                            |
-| `N4` | `external _externalPrivate`          | `external` top-level functions are exempt regardless of name.                         |
-| `N5` | `@pragma('vm:entry-point')` private  | `@pragma('vm:entry-point')` annotated declarations are exempt regardless of name.     |
+| Tag   | Where                                                      | Why the rule skips it                                                                 |
+| ----- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `N1`  | `publicTopLevel`                                           | Public top-level function in a file directly under `lib/` — part of the package's public surface, reachable from outside the analyzed set. |
+| `N2`  | `main`                                                     | The `main` entry point is exempt by name.                                             |
+| `N3`  | `_usedPrivate`                                             | Referenced as both a direct call and a tear-off in `main`.                            |
+| `N4`  | `external _externalPrivate`                                | `external` top-level functions are exempt regardless of name.                         |
+| `N5`  | `@pragma('vm:entry-point')` private                        | `@pragma('vm:entry-point')` annotated declarations are exempt regardless of name.     |
+| `N6`  | `Service.objectPatternGetter`                              | Used only via an object-pattern destructure — the new `visitPatternField` hook counts the resolved getter element as a reference. |
+| `N7`  | `Service.recordGetter`                                     | Used inside a record literal that is destructured by a record pattern — `visitRecordLiteral` and `visitRecordPattern` descend through both forms. |
+| `N8`  | `Service.cascadedMethod`                                   | Invoked from `main` via a cascade (`service..cascadedMethod()`) — cascade sections flow through the recursive visitor. |
+| `N9`  | `Service.call`                                             | Invoked from `main` via the implicit `.call` (`service()`); `visitFunctionExpressionInvocation` records the `call` element as a use. |
+| `N10` | every member of `NoSuchMethodHolder`                       | The class declares its own `noSuchMethod`, which can intercept any call by name at runtime — the rule skips every member and the constructor. |
+| `N11` | every member of `MirrorsHostedService` in `lib/src/mirrors_user.dart` | The library imports `dart:mirrors`, which can invoke arbitrary members by name — the rule skips every member and constructor declared in the unit. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

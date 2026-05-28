@@ -2,6 +2,8 @@
 
 Guidance for Claude Code (and other AI assistants) when working in this repository.
 
+Check @LANGUAGE.md for Dart specific knowledge.
+
 ## Project Overview
 
 `anal` is an **open-source Dart / Flutter package** providing **static code analysis** tooling. It is intended to be consumed by other Dart and Flutter projects (typically as a `dev_dependency`) to enforce code quality, lint rules, and analyzer configuration.
@@ -204,6 +206,100 @@ Closes: #42
 7. **Don't add license headers per file** unless the project policy changes — the root [LICENSE](LICENSE) covers the package.
 8. **Be mindful of `pubspec.yaml` fields** required by pub.dev for scoring: `description` (60–180 chars), `homepage`/`repository`, `version`, `environment`. The current `description` is a placeholder and should be improved before publishing.
 9. **Keep the CLI `_version` constant in sync with `pubspec.yaml`.** [bin/anal.dart](bin/anal.dart) hardcodes a `_version` string used by `dart run anal --version`. Whenever `version:` in [pubspec.yaml](pubspec.yaml) changes (release commits, release-please PRs), update `_version` in the same commit, or `--version` will report a stale value.
+
+## Dart Language Features Rules Must Be Aware Of
+
+Any rule that touches **references**, **reachability**, or **exemptions** — today that is
+[`unused_function`](lib/src/rules/unused_function_rule.dart),
+[`unused_class`](lib/src/rules/unused_class_rule.dart), and
+[`unused_source_file`](lib/src/rules/unused_source_file_rule.dart) — must
+correctly account for the following Dart language features. Each entry
+notes the trap and the expected handling. When adding a new reachability
+rule, walk this list before opening a PR.
+
+- **Conditional imports/exports** (`import 'x.dart' if (dart.library.io) 'x_io.dart';`):
+  every branch is a real reference. Treat *all* candidate URIs as
+  reachable; do not pick one and call the others unused.
+- **`part` / `part of`**: a `part` file is not standalone — its top-level
+  members belong to the parent library. Never flag a `part` file via
+  `unused_source_file`, and resolve references through the parent
+  library, not the part file in isolation.
+- **Extension methods** (`extension Foo on Bar { … }`): calls look like
+  member access on `Bar`. A reference to the extended member keeps the
+  *extension declaration* alive even when the extension itself is never
+  named; treat the extension as reachable whenever any of its members
+  is invoked or torn off.
+- **Extension types** (`extension type Id(int v) { … }`): a zero-cost
+  wrapper that introduces a new static type. Constructor calls and
+  member access count as references to the extension type; do not
+  collapse them into references to the representation type.
+- **Dynamic dispatch** (`dynamic`/`Object?` receivers): the static
+  analyzer cannot prove which member is invoked. Be conservative:
+  unresolved dynamic invocations must not be assumed dead, and rules
+  should err toward keeping plausibly-targeted members reachable rather
+  than reporting false positives.
+- **`noSuchMethod`**: a class overriding `noSuchMethod` can service any
+  selector at runtime. Members reached only through such a class may
+  have no static references; do not flag members of a type whose
+  supertype overrides `noSuchMethod`, and treat the override itself as
+  a reachability sink.
+- **Mirrors / reflection / entry-point annotations** (`dart:mirrors`,
+  `@pragma('vm:entry-point')`, `@JS`, `@Native`, build-time codegen
+  annotations): these keep symbols alive without any static reference.
+  Exempt symbols carrying such annotations from `unused_function` /
+  `unused_class`, and document the exemption set in the rule.
+- **Tearoffs and callable objects** (`list.map(parse)`, `Foo.new`,
+  classes with a `call` method): a bare identifier or `Type.new` *is* a
+  reference to the function/constructor. Count tearoffs as uses, and
+  treat invocation of an instance with a `call` method as a use of that
+  method.
+- **Pattern matching** (`switch` expressions, object/record patterns,
+  destructuring `var (a, b) = …;`): object patterns reference
+  constructors and getters by name, and record patterns reference
+  positional/named fields. Each named element in a pattern is a use of
+  the corresponding declaration.
+- **Class modifiers** (`sealed`, `base`, `interface`, `final`, `mixin
+  class`): subtypes of a `sealed` supertype are reachable via
+  exhaustiveness in `switch`, even if no code names them directly. Do
+  not flag subtypes of a sealed type as unused solely because they
+  lack explicit references; check for an exhaustive switch on the
+  supertype.
+- **Generic covariance and inference**: inferred type arguments still
+  resolve to declared members. Follow the *declared* member on the
+  *static* type — do not require explicit type arguments to consider a
+  generic member referenced.
+- **Deferred imports** (`import 'x.dart' deferred as x; await
+  x.loadLibrary();`): deferred symbols are still referenced, just
+  lazily loaded. Treat `loadLibrary()` calls and prefixed accesses as
+  ordinary uses; do not mark deferred libraries as unused.
+- **Const evaluation**: `const` constructor invocations, `const`
+  collection literals with named types, and constants embedded in
+  annotations all count as references. Walk into annotation arguments
+  and const-context expressions when collecting references.
+- **Environment declarations** (`bool.fromEnvironment`,
+  `int.fromEnvironment`, `String.fromEnvironment`,
+  `bool.hasEnvironment`): values are supplied at build time via
+  `--define`. Rules cannot statically evaluate the result; do not prune
+  branches gated on `fromEnvironment` as unreachable.
+- **Mixins** (`with Foo, Bar`): a `with` clause references the mixin
+  declaration *and* keeps its members reachable on the mixing type.
+  Track `with` as a use of the mixin and, when computing member
+  reachability, include mixed-in members in the surface of each
+  applying class.
+- **Operator overloading** (`operator +`, `operator []`, `operator
+  ==`, …): infix/prefix/index syntax dispatches to a named member.
+  Map operator tokens back to their canonical member name (`+`, `[]`,
+  `==`, `unary-`, etc.) when recording references.
+- **Cascade operator** (`obj..foo()..bar`): each section is a normal
+  invocation or member access on the receiver. Recurse into cascade
+  sections exactly as you would into chained member accesses.
+- **Records and destructuring** (`(int, String) pair = (1, 'a'); var
+  (n, s) = pair; pair.$1; pair.name`): positional fields (`$1`, `$2`,
+  …) and named fields are real members of the record's structural
+  type. Record patterns destructure them by position or name; count
+  each destructured component as a use of the corresponding field, and
+  do not flag records or their fields as unused based on syntactic
+  search alone.
 
 ## Open Source Hygiene
 

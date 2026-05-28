@@ -269,6 +269,80 @@ void main() {
       });
       expect(diagnostics, isEmpty);
     });
+
+    test(
+      'follows every configuration of a conditional import regardless of the active platform',
+      () async {
+        final diagnostics = await runRule({
+          p.join('lib', 'pkg.dart'): "import 'src/hub.dart';\n",
+          p.join('lib', 'src', 'hub.dart'):
+              "import 'io_impl.dart'\n"
+              "    if (dart.library.io) 'io_impl.dart'\n"
+              "    if (dart.library.html) 'web_impl.dart';\n"
+              "String useIt() => platformName();\n",
+          p.join('lib', 'src', 'io_impl.dart'):
+              "String platformName() => 'io';\n",
+          p.join('lib', 'src', 'web_impl.dart'):
+              "String platformName() => 'web';\n",
+        });
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'flags a configuration target that nothing else reaches once the conditional is removed',
+      () async {
+        // Sanity check: without the conditional import, the platform-specific
+        // file is unreachable. This confirms the previous test's silence is
+        // produced by the configuration edge, not by some other path.
+        final diagnostics = await runRule({
+          p.join('lib', 'pkg.dart'): "import 'src/hub.dart';\n",
+          p.join('lib', 'src', 'hub.dart'): "int hub() => 1;\n",
+          p.join('lib', 'src', 'web_impl.dart'):
+              "String platformName() => 'web';\n",
+        });
+        expect(diagnostics, hasLength(1));
+        expect(
+          diagnostics.single.location.filePath,
+          p.normalize(
+            p.absolute(p.join(tempDir.path, 'lib', 'src', 'web_impl.dart')),
+          ),
+        );
+      },
+    );
+
+    test('a file reached only via a deferred import is not flagged', () async {
+      final diagnostics = await runRule({
+        p.join('lib', 'pkg.dart'): "import 'src/hub.dart';\n",
+        p.join('lib', 'src', 'hub.dart'):
+            "import 'deferred.dart' deferred as d;\n"
+            "Future<int> hub() async {\n"
+            "  await d.loadLibrary();\n"
+            "  return d.deferredValue;\n"
+            "}\n",
+        p.join('lib', 'src', 'deferred.dart'): 'const int deferredValue = 7;\n',
+      });
+      expect(diagnostics, isEmpty);
+    });
+
+    test(
+      'a `part of <uri>` library is reached transitively via its owner',
+      () async {
+        // Pins the existing graph behavior for URI-style `part of` files: the
+        // owning library's `PartDirective` contributes the forward edge, so
+        // the part is reachable from the owning library's entry point even
+        // though the `part of '...'` directive itself never appears as an
+        // outgoing edge.
+        final diagnostics = await runRule({
+          p.join('lib', 'pkg.dart'): "import 'src/owner.dart';\n",
+          p.join('lib', 'src', 'owner.dart'):
+              "part 'parted.dart';\nint use() => partAnswer();\n",
+          p.join('lib', 'src', 'parted.dart'):
+              "part of 'owner.dart';\nint partAnswer() => 7;\n",
+        });
+        expect(diagnostics, isEmpty);
+      },
+    );
   });
 }
 

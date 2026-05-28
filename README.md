@@ -102,7 +102,12 @@ analyzed file set:
 
 Direct calls, tear-offs, named-type references, constructor invocations and
 redirects, operator and index expressions, explicit member accesses, and
-setter writes all count as a use.
+setter writes all count as a use. The rule is feature-aware: it also
+follows Dart 3 object-pattern destructures (`final Foo(:getter) = …`),
+record literals and record patterns (`(obj.getter,)` / `final (g,) = …`),
+cascade sections (`obj..foo()`), and the implicit `.call` invocation on
+callable objects (`instance()` resolves to `instance.call()`), so members
+reached only through any of those forms are correctly counted as used.
 
 Deliberately not flagged:
 
@@ -114,6 +119,12 @@ Deliberately not flagged:
 - top-level functions, getters, and setters declared in a library that has
   `part` files (a sibling part could legitimately reference them, and the
   rule does not currently traverse part libraries);
+- every member and constructor of a class that declares its own
+  `noSuchMethod` — that override can service any selector at runtime, so
+  members reached only through it have no static reference;
+- every member and constructor declared in a library that imports
+  `dart:mirrors` — reflection can invoke arbitrary members by name, so the
+  rule conservatively skips the whole unit;
 - members of a private, unreferenced class, mixin, enum, extension type, or
   extension — `unused_class` already flags the enclosing declaration, so
   re-flagging every member would just repeat the report.
@@ -135,7 +146,11 @@ referenced within the same compilation unit:
 Any reference to the declaration counts as a use, including type
 annotations, constructor invocations, `extends`/`implements`/`with`/`on`
 clauses, `is`/`as` checks, static-member access, enum-value access, and
-constructor or static tear-offs.
+constructor or static tear-offs. The rule is Dart 3 feature-aware: it
+also follows Dart 3 object patterns (`case _Foo()` in a `switch`),
+record type annotations (`(_Foo, int)`), and exhaustive `switch` on a
+`sealed` supertype — so a private type referenced only through its
+subtypes' pattern arms is correctly treated as used.
 
 Deliberately not flagged in this release:
 
@@ -144,6 +159,9 @@ Deliberately not flagged in this release:
   (`ClassTypeAlias`);
 - `extension` declarations (the non-type `extension _Ext on T {}` form);
 - declarations annotated with `@pragma('vm:entry-point')`;
+- any private candidate declared in a library that imports
+  `dart:mirrors` — reflection can name arbitrary types at runtime, so
+  the rule conservatively skips the whole unit;
 - files belonging to libraries that have `part` files.
 
 ### `unused_source_file`
@@ -155,7 +173,12 @@ A cross-file rule that flags Dart source files in the analyzed set that
 are never reached from any entry point. Reachability is computed by
 walking `import`, `export`, and `part` directives whose resolved URI
 lands inside the analyzed set; URIs that resolve to `dart:` libraries,
-package dependencies, or files excluded from the run are ignored.
+package dependencies, or files excluded from the run are ignored. For
+conditional imports (`import 'x' if (dart.library.io) 'y'`), every
+`if (...)` configuration contributes a reachability edge regardless of
+the active platform — both alternatives stay reachable in a single
+analysis run. Deferred imports (`import 'x' deferred as p`) are
+followed identically to ordinary imports.
 
 Entry points (always considered "reached") are:
 
@@ -168,14 +191,17 @@ Entry points (always considered "reached") are:
 
 A non-entry-point file counts as "used" if it is reachable, directly or
 transitively, from an entry point via an `import`, `export`, or `part`
-directive.
+directive — including every configuration of a conditional import and
+the target of a deferred import.
 
 Deliberately not flagged in this release:
 
 - entry-point files themselves (files under `bin/` or `test/`, files
   with a top-level `main`, and `lib/*.dart` files outside `lib/src/`);
 - any file reached, directly or transitively, by an `import`, `export`,
-  or `part` directive from an entry point;
+  or `part` directive from an entry point — including every
+  configuration of a conditional import and the target of a deferred
+  import;
 - generated-file basenames such as `*.g.dart` and `*.freezed.dart`,
   which are skipped defensively even if the runner's default excludes
   are turned off.

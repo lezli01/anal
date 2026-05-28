@@ -26,18 +26,21 @@ import '../source_location.dart';
 /// 2. **Build a directed graph** in which each unit points to the absolute,
 ///    normalized paths of every file it pulls in via `ImportDirective`,
 ///    `ExportDirective`, or `PartDirective` and whose resolved URI lies inside
-///    the analyzed set. For `ImportDirective` and `ExportDirective`,
-///    conditional-URI branches declared via
-///    `import '...' if (dart.library.X) '...';` /
-///    `export '...' if (dart.library.X) '...';` are **all** followed — every
-///    `Configuration`'s resolved URI is added as an outgoing edge, not just
-///    the branch the current platform happens to select — so that the
-///    inactive implementations (e.g. the web stub on a VM build) are not
-///    flagged as orphans. URIs that resolve outside the analyzed set
-///    (`dart:` libraries, dependencies, files excluded from the run) are
-///    dropped.
+///    the analyzed set. For an `ImportDirective` or `ExportDirective`, the
+///    primary URI is followed alongside the URI of *every* `if (...)`
+///    configuration on the directive — conditional imports of the form
+///    `import 'foo.dart' if (dart.library.io) 'foo_io.dart'` contribute one
+///    edge per alternative regardless of the active platform, so a
+///    cross-platform stub and all of its platform-specific implementations
+///    are kept reachable in a single multi-file analysis run. Deferred
+///    imports (`import 'x.dart' deferred as p`) are handled identically to
+///    ordinary imports for reachability purposes. URIs that resolve outside
+///    the analyzed set (`dart:` libraries, dependencies, files excluded from
+///    the run) are dropped.
 /// 3. **Compute reachability** from the entry-point set with a breadth-first
-///    search over that graph.
+///    search over that graph. A `part of` library is reached transitively
+///    once its owning library is reached, because the owning library's
+///    `PartDirective` contributes the forward edge to the part file.
 /// 4. **Emit** one [Diagnostic] per non-entry-point candidate that is
 ///    unreachable, located at offset `0` / line `1` / column `1` of the file
 ///    so the message is anchored at the top of the source.
@@ -169,27 +172,28 @@ class UnusedSourceFileRule implements MultiFileAnalyzerRule {
 
   Iterable<String> _resolveDirectiveTargets(Directive directive) sync* {
     DirectiveUri? primary;
+    NodeList<Configuration>? configurations;
     if (directive is ImportDirective) {
+      // Deferred imports (`import 'x' deferred as p`) surface here just like
+      // ordinary imports: the `libraryImport.uri` resolves to the target
+      // source regardless of the `deferred` keyword, so they contribute an
+      // edge to the reachability graph on the same code path.
       primary = directive.libraryImport?.uri;
+      configurations = directive.configurations;
     } else if (directive is ExportDirective) {
       primary = directive.libraryExport?.uri;
+      configurations = directive.configurations;
     } else if (directive is PartDirective) {
       primary = directive.partInclude?.uri;
     }
     if (primary is DirectiveUriWithSource) {
       yield primary.source.fullName;
     }
-    // `import` / `export` may declare conditional-URI branches via
-    // `if (dart.library.X) '...'`. The active configuration's URI is the
-    // only one exposed by `libraryImport.uri` / `libraryExport.uri`, so
-    // every alternative branch must be walked explicitly to avoid flagging
-    // the unreached impl file as an orphan.
-    if (directive is NamespaceDirective) {
-      for (final configuration in directive.configurations) {
-        final resolved = configuration.resolvedUri;
-        if (resolved is DirectiveUriWithSource) {
-          yield resolved.source.fullName;
-        }
+    if (configurations == null) return;
+    for (final configuration in configurations) {
+      final resolved = configuration.resolvedUri;
+      if (resolved is DirectiveUriWithSource) {
+        yield resolved.source.fullName;
       }
     }
   }

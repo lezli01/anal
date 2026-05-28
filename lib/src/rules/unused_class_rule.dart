@@ -31,10 +31,15 @@ import '../source_location.dart';
 /// declaration.
 ///
 /// A declaration is considered "used" if any `SimpleIdentifier` in the
-/// compilation unit resolves (via `element`) to its declared element.
-/// This captures type annotations, constructor invocations, `extends`,
-/// `implements`, `with`, and `on` clauses, `is`/`as` checks, static-member
-/// access, enum-value access, and constructor or static tear-offs.
+/// compilation unit resolves (via `element`) to its declared element, or
+/// if any `NamedType` does — the latter covers the class-modifier forms
+/// (`sealed`, `base`, `interface`, `final`), mixin types in `with`,
+/// `implements`, and `on` clauses, generic type arguments, and the type
+/// position of Dart 3+ object patterns. Beyond identifier and named-type
+/// references, the rule also inspects Dart 3+ pattern syntax: `case Foo()`
+/// object patterns, record patterns, named/positional pattern fields, and
+/// constant patterns all count as references through their nested types
+/// and identifiers.
 ///
 /// The rule deliberately ignores:
 ///
@@ -43,7 +48,11 @@ import '../source_location.dart';
 ///   out of scope for the first cut;
 /// * `extension` declarations (non-type `ExtensionDeclaration`) — out of
 ///   scope for the first cut;
-/// * declarations annotated with `@pragma('vm:entry-point')`.
+/// * declarations annotated with `@pragma('vm:entry-point')`;
+/// * every candidate in a compilation unit that imports `dart:mirrors`,
+///   because reflective lookup may resolve a class by name at runtime
+///   without ever naming it statically — flagging would produce false
+///   positives.
 class UnusedClassRule implements AnalyzerRule {
   /// Creates an instance of the rule. Stateless and `const`-constructible.
   const UnusedClassRule();
@@ -67,6 +76,10 @@ class UnusedClassRule implements AnalyzerRule {
     final filePath = context.filePath;
 
     if (libraryElement.fragments.length > 1) {
+      return const <Diagnostic>[];
+    }
+
+    if (_importsDartMirrors(compilationUnit)) {
       return const <Diagnostic>[];
     }
 
@@ -193,6 +206,14 @@ class UnusedClassRule implements AnalyzerRule {
   }
 }
 
+bool _importsDartMirrors(CompilationUnit unit) {
+  for (final directive in unit.directives) {
+    if (directive is! ImportDirective) continue;
+    if (directive.uri.stringValue == 'dart:mirrors') return true;
+  }
+  return false;
+}
+
 bool _hasVmEntryPointPragma(NodeList<Annotation> metadata) {
   for (final annotation in metadata) {
     final identifier = annotation.name;
@@ -241,5 +262,21 @@ class _ReferenceCollector extends RecursiveAstVisitor<void> {
     final element = node.element;
     if (element != null) sink.add(element);
     super.visitNamedType(node);
+  }
+
+  // Dart 3 patterns: `case Foo()` and `case Foo(x: y)`. The pattern's
+  // `type` is a `NamedType` whose element resolves to the class being
+  // matched, so capturing it here counts the pattern as a use of the
+  // class. `super.visitObjectPattern` recurses into the nested fields,
+  // each of which is a `PatternField` containing a sub-pattern — those
+  // are walked by `RecursiveAstVisitor` so nested patterns
+  // (`RecordPattern`, `ConstantPattern`, further `ObjectPattern`s, etc.)
+  // surface their own references through the existing
+  // `visitNamedType` and `visitSimpleIdentifier` hooks.
+  @override
+  void visitObjectPattern(ObjectPattern node) {
+    final element = node.type.element;
+    if (element != null) sink.add(element);
+    super.visitObjectPattern(node);
   }
 }

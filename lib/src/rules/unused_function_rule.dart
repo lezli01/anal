@@ -69,6 +69,45 @@ part 'unused_function/top_level_function_collector.dart';
 /// declaration: `unused_class` already flags that enclosing
 /// declaration, and re-flagging every member of it would just repeat
 /// the report.
+///
+/// Additional dispatch-site exemptions cover language features that
+/// can reach members through reflection or dynamic dispatch:
+///
+/// * **`noSuchMethod`-declaring classes/mixins.** When the enclosing
+///   class or mixin declares its own `noSuchMethod`, every undefined
+///   call lands in `noSuchMethod` rather than a "no such method"
+///   error, so any member name might legitimately be invoked
+///   dynamically. The rule skips member and constructor candidates of
+///   such enclosing declarations to avoid false positives.
+/// * **Libraries that import `dart:mirrors`.** The `dart:mirrors`
+///   library can invoke arbitrary methods by name at runtime, so any
+///   member of an analyzed library that imports `dart:mirrors` is
+///   treated as potentially used. The rule skips member and
+///   constructor candidates declared in such libraries.
+///
+/// **Features that flow through existing visitors with no extra
+/// handling.** The following language features do not need
+/// rule-specific support — the existing reference visitors already
+/// pick up the references they generate:
+///
+/// * **Deferred imports** (`import '…' deferred as p;`) — references
+///   through the prefix still resolve to the same library elements
+///   that a normal import would, and land via [PrefixedIdentifier] /
+///   [PropertyAccess] visits.
+/// * **Conditional imports** (`if (…) '…'`) — only one branch is
+///   chosen by the analyzer; references through the resolved branch
+///   land via the standard visitors.
+/// * **`sealed`, `base`, `interface`, and `final` class modifiers** —
+///   these change subtyping rules but produce ordinary
+///   [ClassDeclaration] nodes whose members and uses look the same to
+///   the visitor as a plain `class`.
+/// * **Mixins (`mixin`, `mixin class`)** — declared via
+///   [MixinDeclaration] / [ClassDeclaration] and processed by the
+///   existing class-member collector. `with` clauses are visited as
+///   [NamedType]s and pick up the references through that path.
+/// * **`const` constructors** — declared via [ConstructorDeclaration]
+///   like any other constructor and used through
+///   [InstanceCreationExpression] / [ConstructorName] visits.
 class UnusedFunctionRule implements MultiFileAnalyzerRule {
   /// Creates an instance of the rule. Stateless and `const`-constructible.
   const UnusedFunctionRule();
@@ -99,10 +138,20 @@ class UnusedFunctionRule implements MultiFileAnalyzerRule {
       _ExtensionMemberCollector(),
       _ClassMemberCollector(),
     ];
+    const memberCollectors = <Type>{
+      _ConstructorCollector,
+      _ExtensionMemberCollector,
+      _ClassMemberCollector,
+    };
 
     final diagnostics = <Diagnostic>[];
     for (final unit in context.units) {
+      final skipMemberCandidates = _unitImportsDartMirrors(unit.unit);
       for (final collector in collectors) {
+        if (skipMemberCandidates &&
+            memberCollectors.contains(collector.runtimeType)) {
+          continue;
+        }
         for (final candidate in collector.collect(unit)) {
           if (globalReferences.contains(candidate.element)) continue;
           if (_enclosingClassIsUnflaggedUnreferencedPrivate(
@@ -190,6 +239,38 @@ bool _isTopLevelCandidateName(String name, String filePath) {
   final segments = p.split(filePath);
   for (var i = 0; i + 1 < segments.length; i++) {
     if (segments[i] == 'lib' && segments[i + 1] == 'src') return true;
+  }
+  return false;
+}
+
+/// Whether [unit] contains an `import 'dart:mirrors';` directive.
+///
+/// `dart:mirrors` lets a program look up and invoke arbitrary members
+/// by name at runtime, so under the mirrors assumption any declared
+/// member of the importing library might legitimately be referenced
+/// without that reference appearing in the AST. The dispatch site uses
+/// this signal to skip class, mixin, enum, extension type, extension,
+/// and constructor candidates declared in such libraries.
+bool _unitImportsDartMirrors(CompilationUnit unit) {
+  for (final directive in unit.directives) {
+    if (directive is! ImportDirective) continue;
+    if (directive.uri.stringValue == 'dart:mirrors') return true;
+  }
+  return false;
+}
+
+/// Whether [members] contains a `noSuchMethod` method declaration.
+///
+/// A class or mixin that overrides `noSuchMethod` can intercept any
+/// call that would otherwise be a "no such method" error, so the rule
+/// cannot tell whether a member is truly unused or routed through
+/// `noSuchMethod`. Member and constructor collectors use this to skip
+/// candidates declared on such enclosing types.
+bool _membersDeclareNoSuchMethod(Iterable<ClassMember> members) {
+  for (final member in members) {
+    if (member is MethodDeclaration && member.name.lexeme == 'noSuchMethod') {
+      return true;
+    }
   }
   return false;
 }
@@ -361,5 +442,102 @@ class _GlobalReferenceCollector extends RecursiveAstVisitor<void> {
     _add(node.writeElement);
     _add(node.readElement);
     super.visitAssignmentExpression(node);
+  }
+
+  @override
+  void visitPatternField(PatternField node) {
+    // Object-pattern fields resolve `effectiveName` to a getter on the
+    // matched type — e.g. in `Point(x: var px)`, `x` is the `Point.x`
+    // getter. Without this hook the getter declaration would look
+    // unreferenced even though the pattern destructures through it.
+    // Record-pattern fields always have a `null` element and fall
+    // through harmlessly.
+    _add(node.element);
+    super.visitPatternField(node);
+  }
+
+  @override
+  void visitObjectPattern(ObjectPattern node) {
+    // The pattern's `type` is a [NamedType] and the fields are
+    // [PatternField]s — both pick up their references through the
+    // dedicated visitors. This hook exists to make that flow explicit
+    // and to give the rule an obvious extension point.
+    super.visitObjectPattern(node);
+  }
+
+  @override
+  void visitRecordPattern(RecordPattern node) {
+    // Record-pattern fields' patterns are themselves visited, so any
+    // sub-pattern (declared variable, constant, nested object pattern,
+    // etc.) contributes its references through the standard visitor
+    // dispatch.
+    super.visitRecordPattern(node);
+  }
+
+  @override
+  void visitDeclaredVariablePattern(DeclaredVariablePattern node) {
+    // The pattern's optional [TypeAnnotation] flows through children
+    // and lands in [visitNamedType] — exactly what is needed to count
+    // type references inside patterns as uses.
+    super.visitDeclaredVariablePattern(node);
+  }
+
+  @override
+  void visitConstantPattern(ConstantPattern node) {
+    // The wrapped constant [Expression] (e.g. `const Foo()`,
+    // `MyEnum.x`) is visited as a child, so references reach the
+    // standard hooks.
+    super.visitConstantPattern(node);
+  }
+
+  @override
+  void visitDotShorthandConstructorInvocation(
+    DotShorthandConstructorInvocation node,
+  ) {
+    // `.named(args)` resolves to a constructor element on the context
+    // type. Record it directly because the dot-shorthand's only child
+    // identifier (`constructorName`) does not carry the resolved
+    // constructor element on its own.
+    _add(node.element);
+    super.visitDotShorthandConstructorInvocation(node);
+  }
+
+  @override
+  void visitDotShorthandPropertyAccess(DotShorthandPropertyAccess node) {
+    // `.foo` resolves to a getter on the context type. The `propertyName`
+    // SimpleIdentifier carries the resolved element, so descending into
+    // children via the recursive visitor is enough — visiting the
+    // identifier records the getter element via [visitSimpleIdentifier].
+    super.visitDotShorthandPropertyAccess(node);
+  }
+
+  @override
+  void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
+    // `obj()` on a callable object resolves to the object's `call`
+    // method (an implicit `.call` tear-off / invocation). Without this
+    // hook, declaring a `call` method on a class and invoking it via
+    // `instance()` would not register a use of `call`, and the method
+    // would be flagged as unused.
+    _add(node.element);
+    super.visitFunctionExpressionInvocation(node);
+  }
+
+  @override
+  void visitCascadeExpression(CascadeExpression node) {
+    // Cascade sections (`target..foo()..bar = 1`) are visited as
+    // children just like top-level method calls and assignments, so
+    // their references land via the standard visitors. This hook is
+    // declared explicitly so the coverage is documented at the
+    // visitor level.
+    super.visitCascadeExpression(node);
+  }
+
+  @override
+  void visitRecordLiteral(RecordLiteral node) {
+    // Record-literal fields are arbitrary [Expression]s and are
+    // visited through the recursive walk, so references inside a
+    // record literal — including method invocations and tear-offs —
+    // land via the standard visitors.
+    super.visitRecordLiteral(node);
   }
 }

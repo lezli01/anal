@@ -15,7 +15,11 @@ part of '../unused_function_rule.dart';
 /// * `method` otherwise.
 ///
 /// A member is exempt when it is `external` or carries
-/// `@pragma('vm:entry-point')`.
+/// `@pragma('vm:entry-point')`. The collector additionally skips every
+/// member of a class or mixin that declares its own `noSuchMethod`,
+/// because such a type can intercept any otherwise-missing call by
+/// name and the rule cannot tell whether a member is unused or routed
+/// through `noSuchMethod`.
 ///
 /// To avoid duplicate noise with `unused_class`, the rule's dispatch
 /// site additionally skips a candidate when its enclosing type is a
@@ -51,6 +55,7 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
   }
 
   Iterable<_Candidate> _candidatesFor(Iterable<ClassMember> members) sync* {
+    if (_membersDeclareNoSuchMethod(members)) return;
     for (final member in members) {
       if (member is! MethodDeclaration) continue;
       final candidate = _candidateFor(member);

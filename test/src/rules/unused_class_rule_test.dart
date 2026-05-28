@@ -233,6 +233,164 @@ void main() {}
       expect(diagnostics, isEmpty);
     });
 
+    // === Dart 3 pattern-aware references (S3) ===
+
+    test('counts a Dart 3 object pattern as a use', () async {
+      final diagnostics = await runRule('''
+class _Foo {}
+bool isFoo(Object o) => switch (o) {
+  _Foo() => true,
+  _ => false,
+};
+void main() { isFoo(0); }
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test('counts an object pattern with named fields as a use', () async {
+      final diagnostics = await runRule('''
+class _Foo {
+  final int x;
+  const _Foo(this.x);
+}
+int describe(Object o) => switch (o) {
+  _Foo(x: final v) => v,
+  _ => -1,
+};
+void main() { describe(0); }
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test(
+      'counts a constant pattern referencing a private class as a use',
+      () async {
+        final diagnostics = await runRule('''
+class _Foo {
+  static const _Foo instance = _Foo._();
+  const _Foo._();
+}
+bool matchSentinel(Object o) => switch (o) {
+  _Foo.instance => true,
+  _ => false,
+};
+void main() { matchSentinel(0); }
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'counts a record pattern containing an object pattern as a use',
+      () async {
+        final diagnostics = await runRule('''
+class _Foo {}
+bool match(Object o) => switch (o) {
+  (_Foo(), int _) => true,
+  _ => false,
+};
+void main() { match((0, 1)); }
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'counts a record type annotation containing a private class as a use',
+      () async {
+        final diagnostics = await runRule('''
+class _Foo {}
+void accept((_Foo, int) pair) {}
+void main() {}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    // === visitNamedType already covers the following positions — pin
+    // the behaviour with tests so the coverage cannot regress silently.
+
+    test(
+      'counts a sealed class as used when matched via its subtype',
+      () async {
+        final diagnostics = await runRule('''
+sealed class _Parent {}
+class _ChildA extends _Parent {}
+class _ChildB extends _Parent {}
+String describe(Object o) => switch (o) {
+  _ChildA() => 'a',
+  _ChildB() => 'b',
+  _ => 'other',
+};
+void main() { describe(0); }
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test('counts base/interface/final class modifiers via NamedType', () async {
+      final diagnostics = await runRule('''
+base class _Base {}
+interface class _Iface {}
+final class _Final {}
+class _BaseUser extends _Base {}
+class _IfaceUser implements _Iface {}
+class _FinalUser { _Final? value; }
+void main() {
+  _BaseUser();
+  _IfaceUser();
+  _FinalUser();
+}
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test('counts a mixin used in an `on` clause as a use', () async {
+      final diagnostics = await runRule('''
+class _Base {}
+mixin _Mix on _Base {}
+class C extends _Base with _Mix {}
+void main() { C(); }
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test('counts a class used as a generic type argument as a use', () async {
+      final diagnostics = await runRule('''
+class _Foo {}
+final List<_Foo> items = <_Foo>[];
+void main() { items.length; }
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    // === dart:mirrors exemption ===
+
+    test('does not flag any candidate when dart:mirrors is imported', () async {
+      final diagnostics = await runRule('''
+import 'dart:mirrors';
+class _Foo {}
+mixin _Bar {}
+enum _Baz { a, b }
+extension type _Qux(int v) {}
+void main() { reflect(0); }
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test(
+      'still flags unused private declarations when dart:mirrors is not imported',
+      () async {
+        final diagnostics = await runRule('''
+import 'dart:async';
+class _Foo {}
+void main() { Future<void>.value(); }
+''');
+        expect(diagnostics, hasLength(1));
+        expect(diagnostics.single.message, contains('_Foo'));
+      },
+    );
+
     // Regression test for the `UnsupportedError: Requires
     // useDeclaringConstructorsAst = true` crash when reading
     // `ClassDeclaration.namePart` / `EnumDeclaration.namePart` on analyzer

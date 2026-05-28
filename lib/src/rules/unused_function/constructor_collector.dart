@@ -10,7 +10,12 @@ part of '../unused_function_rule.dart';
 /// constructor has no [ConstructorDeclaration] in the source.
 ///
 /// A constructor is exempt when it is `external` or carries
-/// `@pragma('vm:entry-point')`.
+/// `@pragma('vm:entry-point')`. The collector additionally skips every
+/// constructor on a class that declares its own `noSuchMethod`,
+/// because such a class can intercept any otherwise-missing call by
+/// name and the rule cannot tell whether a constructor is truly unused
+/// or invoked through reflection / dynamic dispatch on its enclosing
+/// type.
 ///
 /// To avoid duplicate noise with `unused_class`, the rule's dispatch
 /// site additionally skips a constructor candidate when its enclosing
@@ -41,7 +46,9 @@ class _ConstructorCollector implements _UnusedFunctionCandidateCollector {
         // the always-available `members` keeps the collector portable
         // across the supported analyzer range.
         // ignore: deprecated_member_use
-        for (final member in declaration.members) {
+        final members = declaration.members;
+        if (_membersDeclareNoSuchMethod(members)) continue;
+        for (final member in members) {
           if (member is! ConstructorDeclaration) continue;
           final candidate = _candidateFor(member, classNameToken);
           if (candidate != null) yield candidate;
@@ -55,7 +62,9 @@ class _ConstructorCollector implements _UnusedFunctionCandidateCollector {
         // See the `ClassDeclaration` branch above for why `members` is
         // preferred over the deprecation's suggested `body` accessor.
         // ignore: deprecated_member_use
-        for (final member in declaration.members) {
+        final members = declaration.members;
+        if (_membersDeclareNoSuchMethod(members)) continue;
+        for (final member in members) {
           if (member is! ConstructorDeclaration) continue;
           final candidate = _candidateFor(member, enumNameToken);
           if (candidate != null) yield candidate;

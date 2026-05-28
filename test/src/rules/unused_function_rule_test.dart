@@ -183,6 +183,168 @@ void main() {
         expect(diagnostics.single.correction, 'Remove "_foo" or reference it.');
       },
     );
+
+    test(
+      'object-pattern destructuring counts as a use of the getter',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  int get value => 1;
+}
+void main() {
+  final C(:value) = C();
+  // ignore: unused_local_variable
+  final v = value;
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'record literal + record-pattern destructuring counts as a use of the getter',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  int get value => 1;
+}
+void main() {
+  final c = C();
+  final record = (c.value,);
+  final (v,) = record;
+  // ignore: unused_local_variable
+  final read = v;
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test('declared variable patterns descend into type annotations', () async {
+      final diagnostics = await runRule('''
+class _Box {
+  const _Box();
+}
+void main() {
+  Object o = const _Box();
+  switch (o) {
+    case _Box _:
+      break;
+    default:
+      break;
+  }
+}
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test('constant patterns descend into the wrapped expression', () async {
+      final diagnostics = await runRule('''
+class C {
+  static const int marker = 1;
+}
+void main() {
+  Object o = 1;
+  switch (o) {
+    case C.marker:
+      break;
+    default:
+      break;
+  }
+}
+''');
+      expect(diagnostics, isEmpty);
+    });
+
+    test(
+      'cascade method calls count as a use of the cascaded method',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  void cascaded() {}
+}
+void main() {
+  C()..cascaded();
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'callable-object `instance()` invocation counts as a use of `call`',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  void call() {}
+}
+void main() {
+  final c = C();
+  c();
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'record literal field expressions descend into the recursive visitor',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  int produce() => 1;
+}
+void main() {
+  final c = C();
+  // ignore: unused_local_variable
+  final record = (c.produce(),);
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'classes that declare noSuchMethod exempt every member candidate',
+      () async {
+        final diagnostics = await runRule('''
+class C {
+  C();
+  void wouldBeFlagged() {}
+  int get wouldBeFlaggedGetter => 0;
+  set wouldBeFlaggedSetter(int v) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+void main() {
+  C();
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
+
+    test(
+      'analyzed libraries that import dart:mirrors exempt every member candidate',
+      () async {
+        final diagnostics = await runRule('''
+// ignore_for_file: unused_import, depend_on_referenced_packages
+import 'dart:mirrors';
+
+class C {
+  C();
+  void wouldBeFlagged() {}
+  int get wouldBeFlaggedGetter => 0;
+  set wouldBeFlaggedSetter(int v) {}
+}
+void main() {
+  C();
+}
+''');
+        expect(diagnostics, isEmpty);
+      },
+    );
   });
 }
 
