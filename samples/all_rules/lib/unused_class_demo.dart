@@ -78,3 +78,37 @@ extension _Ext on int {
 // the metadata exemption.
 @pragma('vm:entry-point')
 class _EntryClass {}
+
+// (N11) Private class used only as the type in a Dart 3 object pattern
+// (`case _UsedInObjectPattern()`). The pattern-aware reference collector
+// resolves the pattern's type to the class element.
+class _UsedInObjectPattern {}
+
+bool matchesObjectPattern(Object o) => switch (o) {
+  _UsedInObjectPattern() => true,
+  _ => false,
+};
+
+// (N12) Private class referenced only inside a record type annotation —
+// `(_UsedInRecord, int)`. The `_UsedInRecord` token is a `NamedType`
+// inside the record type and is captured by the existing named-type
+// visitor.
+class _UsedInRecord {}
+
+void acceptRecord((_UsedInRecord, int) pair) {}
+
+// (N13) Private sealed parent referenced only through pattern matching
+// on its subtypes. `_SealedParent` itself appears only in the `extends`
+// clauses of `_SealedChildA` / `_SealedChildB`; the children are in
+// turn referenced via Dart 3 object patterns inside the `switch`.
+sealed class _SealedParent {}
+
+class _SealedChildA extends _SealedParent {}
+
+class _SealedChildB extends _SealedParent {}
+
+String describeSealed(Object o) => switch (o) {
+  _SealedChildA() => 'a',
+  _SealedChildB() => 'b',
+  _ => 'other',
+};

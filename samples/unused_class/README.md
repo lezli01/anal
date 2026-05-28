@@ -16,7 +16,8 @@ samples/unused_class/
 ├── pubspec.yaml                       # path-deps on ../.. (the root anal package)
 ├── README.md                          # this file
 └── lib/
-    └── unused_class_sample.dart       # positive + negative cases for unused_class
+    ├── unused_class_sample.dart       # positive + negative cases for unused_class
+    └── mirrors_unit_sample.dart       # `dart:mirrors` exemption (N14)
 ```
 
 ## Running the rule
@@ -64,3 +65,7 @@ Each diagnostic carries the message
 | N8   | `class _Alias = _AliasBase with _AliasMixin;` — `ClassTypeAlias` is out of scope.  |
 | N9   | `extension _Ext on int {}` — non-type `extension` declarations are out of scope.   |
 | N10  | `@pragma('vm:entry-point')` annotated `_EntryClass` is exempted by the rule.       |
+| N11  | `_UsedInObjectPattern` is referenced only through a Dart 3 `case _UsedInObjectPattern()` object pattern. |
+| N12  | `_UsedInRecord` is referenced only inside the record type annotation `(_UsedInRecord, int)`. |
+| N13  | `_SealedParent` is referenced only through `extends` in its subtypes, which are themselves only referenced through object patterns in a `switch`. |
+| N14  | `_ReflectivelyReachable` lives in `lib/mirrors_unit_sample.dart`, which imports `dart:mirrors`; the rule exempts every candidate in such a unit. |
