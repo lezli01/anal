@@ -24,11 +24,15 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // called through `IntBox`, and `Holder<int>.value(0)` invoking a
   // generic sealed-class factory) — both MUST NOT be flagged because
   // candidate and reference elements are projected to their declared
-  // base form. The companion lib/src/l10n/l10n.dart and
-  // lib/src/l10n/l10n_en.dart mock the output of `flutter gen-l10n` and
-  // are stamped with the de-facto generated-code marker
-  // `// ignore_for_file: type=lint`; every candidate in those units is
-  // exempt from the rule, so they MUST NOT contribute any diagnostics.
+  // base form. N19 exercises super-parameter forwarding (`class B
+  // extends A { const B({super.x}); }` plus `const B(x: 1)`): the
+  // implicit super-constructor invocation is recorded as a use of
+  // `A.new`, so `A`'s constructor MUST NOT be flagged. The companion
+  // lib/src/l10n/l10n.dart and lib/src/l10n/l10n_en.dart mock the
+  // output of `flutter gen-l10n` and are stamped with the de-facto
+  // generated-code marker `// ignore_for_file: type=lint`; every
+  // candidate in those units is exempt from the rule, so they MUST
+  // NOT contribute any diagnostics.
   'unused_function': [
     ('unused_function', 'lib/src/internals.dart'),
     ('unused_function', 'lib/unused_function_sample.dart'),
@@ -69,7 +73,10 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // object patterns, record literals + record patterns, cascades, callable-object
   // `.call`, the `noSuchMethod` / `dart:mirrors` exemptions, the
   // generic-member identity normalisation (calls into `Box<T>` through a
-  // non-generic subtype and a generic sealed-class factory), and the
+  // non-generic subtype and a generic sealed-class factory),
+  // super-parameter forwarding (`class B extends A { const B({super.x}); }`
+  // plus `const B(x: 1)` — the implicit super-constructor invocation
+  // keeps `A.new` referenced), and the
   // `// ignore_for_file: type=lint` generated-code marker exemption for
   // unused_function (lib/unused_function_demo.dart, lib/src/mirrors_user.dart, and
   // lib/src/l10n/l10n.dart + lib/src/l10n/l10n_en.dart); object patterns,

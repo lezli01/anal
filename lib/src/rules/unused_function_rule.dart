@@ -54,7 +54,12 @@ part 'unused_function/top_level_function_collector.dart';
 /// the resolved element of every reference-bearing AST node — including
 /// tear-offs, named-type references, constructor invocations and
 /// redirects, operator and index expressions, explicit member accesses,
-/// and setter writes.
+/// setter writes, and the *implicit* super-constructor target of every
+/// generative subclass constructor (super-parameter forwarding,
+/// `B({super.x})`, produces no [SuperConstructorInvocation] node but
+/// still chains to the supertype at runtime; classes that declare no
+/// constructors of their own also get a synthetic default constructor
+/// that implicitly invokes super).
 ///
 /// The rule deliberately ignores the library's `main` entry point,
 /// public top-level functions / getters / setters declared outside
@@ -610,6 +615,27 @@ class _GlobalReferenceCollector extends RecursiveAstVisitor<void> {
   @override
   void visitConstructorDeclaration(ConstructorDeclaration node) {
     _add(node.redirectedConstructor?.element);
+    // Record the implicit super-constructor target for generative
+    // constructors that do not write an explicit `super(...)` call and
+    // do not redirect to a peer via `: this.other(...)`. Super-parameter
+    // forwarding (`B({super.x})`, Dart 2.17+) produces no
+    // [SuperConstructorInvocation] node, but the runtime still chains
+    // to the supertype constructor — without this hook the supertype
+    // constructor would never land in the global reference set when its
+    // only call sites are super-parameter-forwarding subclasses.
+    // Factory constructors do not chain to super: they either redirect
+    // (`factory X() = Y;`) or build and return an instance directly.
+    if (node.factoryKeyword == null) {
+      final hasExplicitSuper = node.initializers.any(
+        (initializer) => initializer is SuperConstructorInvocation,
+      );
+      final hasThisRedirect = node.initializers.any(
+        (initializer) => initializer is RedirectingConstructorInvocation,
+      );
+      if (!hasExplicitSuper && !hasThisRedirect) {
+        _add(node.declaredFragment?.element.superConstructor);
+      }
+    }
     // Skip the class-name anchor (`typeName`) — declaring a constructor
     // is not a "use" of its enclosing class, and counting it would make
     // every class with at least one declared constructor look
@@ -619,6 +645,26 @@ class _GlobalReferenceCollector extends RecursiveAstVisitor<void> {
     node.initializers.accept(this);
     node.redirectedConstructor?.accept(this);
     node.body.accept(this);
+  }
+
+  @override
+  void visitClassDeclaration(ClassDeclaration node) {
+    // When a class declares no constructors of its own, the analyzer
+    // synthesises a default unnamed constructor whose only job is to
+    // chain to the supertype constructor. The synthetic constructor has
+    // no AST node, so [visitConstructorDeclaration] never fires for it
+    // — record the super-constructor target here so that
+    // `class B extends A {}` counts as a use of `A.new`.
+    // ignore: deprecated_member_use
+    final members = node.members;
+    final hasDeclaredConstructor = members.any(
+      (member) => member is ConstructorDeclaration,
+    );
+    if (!hasDeclaredConstructor) {
+      final unnamed = node.declaredFragment?.element.unnamedConstructor;
+      _add(unnamed?.superConstructor);
+    }
+    super.visitClassDeclaration(node);
   }
 
   @override

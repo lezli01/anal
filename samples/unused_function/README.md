@@ -53,15 +53,15 @@ samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_functio
 samples/unused_function/lib/unused_function_sample.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:180:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:183:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:186:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:189:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:192:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:199:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:253:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:309:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:330:7 • [warning] unused_function: The method "foo" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:189:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:192:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:195:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:198:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:201:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:208:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:262:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:318:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:339:7 • [warning] unused_function: The method "foo" is declared but never used.
 ```
 
 (Line / column numbers refer to the file named in each line.)
@@ -106,6 +106,7 @@ samples/unused_function/lib/unused_function_sample.dart:330:7 • [warning] unus
 | `N16` | `_C.foo` extending `_B extends _A` (two-hop) | `_A` declares `noSuchMethod`, `_B extends _A` forwards the override implicitly, `_C extends _B implements NoSuchMethodTarget`. The walk transitively finds `_A.noSuchMethod` through `_B`, so `_C.foo` is exempt despite neither `_B` nor `_C` declaring `noSuchMethod` directly. |
 | `N17` | `Box<T>.put` and `Box<T>.peek` called through `IntBox` | Generic-class members invoked through a non-generic subtype resolve to a substituted "member view" of the declared element. Both the candidate set and the global reference set are projected through `Element.baseElement` so the declared member matches the call site. Without normalisation `Box.put` and `Box.peek` would be flagged. |
 | `N18` | `Holder<int>.value(0)`                       | Factory constructor on a generic sealed class invoked with an explicit type argument resolves to a substituted view of the declared constructor; the same `baseElement` projection lets the declared factory match the call site. |
+| `N19` | `A.new` reached through `B`'s `super.x` forwarding (`class B extends A { const B({super.x}); }` plus `const B(x: 1)`) | Super-parameter forwarding (Dart 2.17+) produces no `SuperConstructorInvocation` AST node — the forwarding is expressed only through the `super.x` parameter. The rule reads the implicit super-constructor target off the constructor element and records it as a use, so `A`'s constructor must NOT be flagged. Also covers classes that declare no constructor of their own: the synthetic default constructor implicitly invokes super, and the `visitClassDeclaration` hook records that super target. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

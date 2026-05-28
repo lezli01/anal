@@ -173,6 +173,15 @@ void main() {
   // match the declared candidate and the factory would be flagged.
   // ignore: unused_local_variable
   final holder = Holder<int>.value(0);
+
+  // (N19) Super-parameter forwarding (Dart 2.17+). `B`'s constructor
+  // declares `super.x` rather than writing an explicit `super(x: x)`
+  // initializer, so the AST carries no `SuperConstructorInvocation` for
+  // `A.new`. The implicit super-constructor target is read off the
+  // constructor element and recorded as a use, so `A`'s constructor
+  // must NOT be flagged.
+  // ignore: unused_local_variable
+  final b = const B(x: 1);
 }
 
 class Service {
@@ -395,4 +404,21 @@ sealed class Holder<T> {
 class _ValueHolder<T> implements Holder<T> {
   const _ValueHolder(this.v);
   final T v;
+}
+
+// === Super-parameter forwarding (Dart 2.17+) ===
+//
+// `B`'s constructor uses `super.x` to forward `x` to `A`'s constructor.
+// The AST has no `SuperConstructorInvocation` node for this — the
+// forwarding is expressed only through the `super.x` formal parameter.
+// The rule reads the implicit super-constructor target off the
+// constructor element so `A`'s constructor counts as referenced.
+
+abstract class A {
+  const A({this.x = 0});
+  final int x;
+}
+
+class B extends A {
+  const B({super.x});
 }

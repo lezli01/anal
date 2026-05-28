@@ -624,6 +624,75 @@ Future analyzers MUST:
 
 ---
 
+# 21. Super-Parameter Forwarding (Dart 2.17+)
+
+Risk: HIGH
+
+## Syntax
+
+```dart
+abstract class A {
+  const A({this.x = 0});
+  final int x;
+}
+
+class B extends A {
+  const B({super.x});
+}
+```
+
+A `super.x` formal parameter implicitly forwards the argument to the
+supertype constructor at instance-initialisation time. The same implicit
+chaining happens for any generative constructor that omits both an
+explicit `super(...)` initializer and a `: this.other(...)` redirect, and
+for the synthetic default constructor a class gets when it declares none:
+
+```dart
+class B extends A {} // synthetic B.new implicitly calls A.new
+```
+
+## Why This Matters
+
+The runtime always invokes the supertype constructor when a generative
+constructor runs, but the AST does NOT carry a
+`SuperConstructorInvocation` node for the implicit form. Visitors that
+only look at explicit `super(...)` initializers therefore miss the
+supertype constructor entirely:
+
+* Reachability rules (dead-code / unused-member detection) will flag
+  base-class constructors that are only reached through super-parameter
+  forwarding or via subclasses whose synthetic default constructor is
+  the sole caller.
+* Call-graph builders will under-approximate the constructor-flow edges
+  from subclass to supertype.
+* Refactors that delete a "never-called" constructor will silently break
+  every subclass that forwards into it.
+
+## Analyzer Requirements
+
+MUST:
+
+* Treat a generative `ConstructorDeclaration` whose initializers contain
+  neither a `SuperConstructorInvocation` nor a
+  `RedirectingConstructorInvocation` as having an *implicit*
+  `super(...)` call to its enclosing class's resolved
+  `ConstructorElement.superConstructor`.
+* Treat `class B extends A {}` (no source constructor) as carrying an
+  implicit super-constructor call from the synthetic default
+  constructor; read it via `InterfaceElement.unnamedConstructor` and
+  follow `superConstructor`.
+* Recognise `super.x` formal parameters as ordinary parameter
+  declarations whose binding flows through the implicit super-call.
+
+MUST NOT:
+
+* Synthesise a super-call edge for `factory` constructors — factories
+  build / redirect and never chain to super.
+* Synthesise a super-call edge when the constructor explicitly redirects
+  to a peer via `: this.named(...)`.
+
+---
+
 # Flutter-Specific Notes
 
 Flutter heavily amplifies analysis complexity through:
