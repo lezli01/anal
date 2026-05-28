@@ -36,12 +36,14 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
+  if (parsed['list-rules'] as bool) {
+    _printRuleListing(_buildRegistry(), stdout);
+    return;
+  }
+
   final options = _buildOptions(parsed);
 
-  final registry = RuleRegistry();
-  registry.registerMultiFile(UnusedFunctionRule());
-  registry.register(UnusedClassRule());
-  registry.registerMultiFile(UnusedSourceFileRule());
+  final registry = _buildRegistry();
 
   final runner = AnalysisRunner(registry: registry, options: options);
   final diagnostics = await runner.run();
@@ -65,6 +67,13 @@ ArgParser _buildArgParser() {
       'version',
       negatable: false,
       help: 'Print the package version and exit.',
+    )
+    ..addFlag(
+      'list-rules',
+      negatable: false,
+      help:
+          'List the registered rules with their severity and description, '
+          'then exit.',
     )
     ..addOption(
       'rules',
@@ -133,4 +142,45 @@ String _usage(ArgParser parser) {
       '\n'
       'Options:\n'
       '${parser.usage}';
+}
+
+RuleRegistry _buildRegistry() {
+  final registry = RuleRegistry();
+  registry.registerMultiFile(UnusedFunctionRule());
+  registry.register(UnusedClassRule());
+  registry.registerMultiFile(UnusedSourceFileRule());
+  return registry;
+}
+
+void _printRuleListing(RuleRegistry registry, StringSink out) {
+  final entries = <({String id, Severity severity, String description})>[
+    for (final rule in registry.rules)
+      (
+        id: rule.id,
+        severity: rule.defaultSeverity,
+        description: rule.description,
+      ),
+    for (final rule in registry.multiFileRules)
+      (
+        id: rule.id,
+        severity: rule.defaultSeverity,
+        description: rule.description,
+      ),
+  ];
+
+  var idWidth = 0;
+  for (final entry in entries) {
+    if (entry.id.length > idWidth) {
+      idWidth = entry.id.length;
+    }
+  }
+
+  out.write('Available rules:\n\n');
+  for (final entry in entries) {
+    out.write(
+      '  ${entry.id.padRight(idWidth + 2)}'
+      '${entry.severity.name.padRight(9)}'
+      '${entry.description}\n',
+    );
+  }
 }

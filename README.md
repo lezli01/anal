@@ -48,6 +48,8 @@ Options:
 
 - `--help`, `-h`: print usage and exit.
 - `--version`: print the package version and exit.
+- `--list-rules`: print every registered rule with its id, severity, and
+  description, then exit.
 - `--rules <id,id,...>`: run only the listed rule ids.
 - `--exclude <glob>`: exclude matching paths. Repeat for multiple patterns.
   Custom excludes are added on top of the built-in defaults.
@@ -61,6 +63,13 @@ any match excludes the file. To opt out of the defaults entirely:
 
 ```sh
 dart run anal --no-default-excludes
+```
+
+List the rules shipped with `anal` — each entry shows the rule id,
+severity, and a one-line description, one rule per line:
+
+```sh
+dart run anal --list-rules
 ```
 
 Exit codes:
