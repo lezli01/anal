@@ -136,6 +136,26 @@ void main() {
   // so the override below stays flagged.
   // ignore: unused_local_variable
   final isolated = IsolatedSub();
+
+  // (N15) `_FakeService` extends `_Fake` (which declares its own
+  // `noSuchMethod`) and implements `NoSuchMethodTarget`. The constructor
+  // call below is the only static reference to the class — every
+  // member declared on `_FakeService` reaches dispatch only through
+  // `_Fake.noSuchMethod`, so the supertype-walking exemption skips them
+  // all. Without instantiating here, `unused_class` would flag the
+  // private class itself; the instantiation is unrelated to the
+  // `unused_function` exemption being tested.
+  // ignore: unused_local_variable
+  final fakeService = _FakeService();
+
+  // (N16) Two-hop chain — `_A` declares `noSuchMethod`, `_B` extends `_A`
+  // (forwarding the override), and `_C` extends `_B` while implementing
+  // `NoSuchMethodTarget`. The walk transitively finds `_A.noSuchMethod`
+  // through `_B`, so `_C.foo` is exempt despite `_C` itself declaring
+  // no `noSuchMethod` override. Again instantiated only so
+  // `unused_class` does not flag `_C`.
+  // ignore: unused_local_variable
+  final twoHop = _C();
 }
 
 class Service {
@@ -270,4 +290,60 @@ class IsolatedBase {
 class IsolatedSub extends IsolatedBase {
   @override
   void overrideButUnreachable() {}
+}
+
+// === noSuchMethod walks supertype chain ===
+//
+// These cases exercise the supertype-chain walk for the
+// `noSuchMethod` exemption: when the enclosing class — or any class /
+// mixin / interface reachable through `extends`, `with`, or
+// `implements` — declares its own `noSuchMethod`, every member of the
+// enclosing declaration is skipped. The walk also recognises mocktail's
+// `Fake` and `Mock` base classes by simple name.
+
+// Acts as the supertype surface that the `noSuchMethod`-walk samples
+// declare an `@override` for.
+class NoSuchMethodTarget {
+  // (P13) Concrete method that is never invoked. The supertype-walking
+  // exemption only fires on subclasses whose chain includes a
+  // `noSuchMethod` declaration — `NoSuchMethodTarget` itself has no
+  // such supertype, so its own unused member is still flagged. Acts as
+  // the positive control that proves the walk does not silently spill
+  // into every public class.
+  int foo() => 0;
+}
+
+// Declares its own `noSuchMethod`, the canonical signal that any
+// otherwise-missing call can be intercepted at runtime.
+class _Fake {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+// (N15) `_FakeService.foo` is exempt because the supertype `_Fake`
+// declares `noSuchMethod`. The walk inspects `_FakeService`'s own
+// methods first, then `allSupertypes` — finding `_Fake.noSuchMethod` —
+// and skips every member of `_FakeService`. The override never lands
+// in the global reference set, so without the supertype walk this
+// method would be flagged.
+class _FakeService extends _Fake implements NoSuchMethodTarget {
+  @override
+  int foo() => 0;
+}
+
+// (N16) Two-hop chain. `_A` declares `noSuchMethod`, `_B extends _A`
+// (forwarding the override implicitly), and `_C extends _B implements
+// NoSuchMethodTarget`. The walk transitively finds `_A.noSuchMethod`
+// through `_B` in `_C.allSupertypes`, so `_C.foo` is exempt despite
+// neither `_B` nor `_C` declaring `noSuchMethod` directly.
+class _A {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _B extends _A {}
+
+class _C extends _B implements NoSuchMethodTarget {
+  @override
+  int foo() => 0;
 }

@@ -46,21 +46,22 @@ fvm dart run anal samples/unused_function/lib
 
 ## Expected output
 
-Twelve `unused_function` diagnostics — and nothing else:
+Thirteen `unused_function` diagnostics — and nothing else:
 
 ```
 samples/unused_function/lib/src/internals.dart:15:6 • [warning] unused_function: The top-level function "unusedPublicTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:29:6 • [warning] unused_function: The top-level function "_unusedPrivateTopLevel" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:32:9 • [warning] unused_function: The top-level getter "_unusedTopLevelGetter" is declared but never used.
 samples/unused_function/lib/unused_function_sample.dart:35:5 • [warning] unused_function: The top-level setter "_unusedTopLevelSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:143:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:146:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:149:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:152:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:155:20 • [warning] unused_function: The operator "-" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:162:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:216:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
-samples/unused_function/lib/unused_function_sample.dart:272:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:163:8 • [warning] unused_function: The method "_unusedPrivateMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:166:15 • [warning] unused_function: The static method "unusedStaticMethod" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:169:11 • [warning] unused_function: The getter "unusedGetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:172:7 • [warning] unused_function: The setter "unusedSetter" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:175:20 • [warning] unused_function: The operator "-" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:182:10 • [warning] unused_function: The local function "unusedLocal" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:236:10 • [warning] unused_function: The extension method "unusedExtension" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:292:8 • [warning] unused_function: The method "overrideButUnreachable" is declared but never used.
+samples/unused_function/lib/unused_function_sample.dart:313:7 • [warning] unused_function: The method "foo" is declared but never used.
 ```
 
 (Line / column numbers refer to the file named in each line.)
@@ -81,6 +82,7 @@ samples/unused_function/lib/unused_function_sample.dart:272:8 • [warning] unus
 | `P10` | `StringX.unusedExtension`                   | Method on a public extension that is never invoked.                                   |
 | `P11` | `unusedPublicTopLevel` in `lib/src/internals.dart` | Public top-level function in `lib/src/`. Files under `lib/src/` are the package's internal surface, so public top-level declarations there are candidates. |
 | `P12` | `IsolatedSub.overrideButUnreachable`         | `@override` whose inherited supertype member is in the analyzed set but itself unreferenced — the override-of-reachable exemption does not apply, so the method is still flagged. |
+| `P13` | `NoSuchMethodTarget.foo`                     | Concrete method on a class whose supertype chain does NOT declare `noSuchMethod` — the supertype-walking exemption does not apply, so the unused member is still flagged. Acts as the positive control for the `noSuchMethod` walk. |
 
 ### Negative cases (MUST NOT be flagged)
 
@@ -100,6 +102,8 @@ samples/unused_function/lib/unused_function_sample.dart:272:8 • [warning] unus
 | `N12` | every abstract getter on `L` in `lib/src/l10n/l10n.dart` and every concrete `@override` getter on `LEn` in `lib/src/l10n/l10n_en.dart` | Each file is stamped with the de-facto Dart "this is generated" marker `// ignore_for_file: type=lint` at the top, which `flutter gen-l10n` writes into every file it emits — the rule treats the marker as a unit-level exemption and skips every candidate collector for the unit. |
 | `N13` | `Greeter.build` extending `StatelessWidgetStub` | `@override` of an in-repo abstract supertype member that is itself referenced through `this` from the base class (`render()` calls `build()`) — the supertype member is in the global reference set, so the override is treated as a use. |
 | `N14` | `Sub.hook` extending `Base`                  | `@override` of an in-repo abstract supertype member that is invoked from the base class (`Base.run` calls `hook()` through implicit `this`) — same override-of-reachable exemption as N13. |
+| `N15` | `_FakeService.foo` extending `_Fake` implementing `NoSuchMethodTarget` | `_Fake` declares its own `noSuchMethod`; the supertype-walking exemption inspects `_FakeService.allSupertypes`, finds `_Fake.noSuchMethod`, and skips every member of `_FakeService`. Mocktail's `Fake` / `Mock` simple names are recognised the same way even when the base library is not part of the analyzed set. |
+| `N16` | `_C.foo` extending `_B extends _A` (two-hop) | `_A` declares `noSuchMethod`, `_B extends _A` forwards the override implicitly, `_C extends _B implements NoSuchMethodTarget`. The walk transitively finds `_A.noSuchMethod` through `_B`, so `_C.foo` is exempt despite neither `_B` nor `_C` declaring `noSuchMethod` directly. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

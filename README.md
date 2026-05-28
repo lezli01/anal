@@ -127,9 +127,13 @@ Deliberately not flagged:
 - top-level functions, getters, and setters declared in a library that has
   `part` files (a sibling part could legitimately reference them, and the
   rule does not currently traverse part libraries);
-- every member and constructor of a class that declares its own
-  `noSuchMethod` — that override can service any selector at runtime, so
-  members reached only through it have no static reference;
+- every member and constructor of a class whose supertype chain
+  (`extends` / `with` / `implements`) declares its own `noSuchMethod` —
+  that override can service any selector at runtime, so members reached
+  only through it have no static reference. The walk also recognises
+  `package:mocktail`'s `Fake` and `Mock` base classes by simple name,
+  since the analyzed sources typically do not pull the mocktail library
+  in as a resolved dependency;
 - every member and constructor declared in a library that imports
   `dart:mirrors` — reflection can invoke arbitrary members by name, so the
   rule conservatively skips the whole unit;

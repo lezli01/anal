@@ -16,10 +16,16 @@ part of '../unused_function_rule.dart';
 ///
 /// A member is exempt when it is `external` or carries
 /// `@pragma('vm:entry-point')`. The collector additionally skips every
-/// member of a class or mixin that declares its own `noSuchMethod`,
-/// because such a type can intercept any otherwise-missing call by
-/// name and the rule cannot tell whether a member is unused or routed
-/// through `noSuchMethod`.
+/// member of a class, mixin, enum, or extension type when the
+/// enclosing declaration — or any class / mixin / interface reached
+/// through `extends`, `with`, `implements`, or mixin `on` clauses —
+/// declares its own `noSuchMethod`, because such a type can intercept
+/// any otherwise-missing call by name and the rule cannot tell whether
+/// a member is unused or routed through `noSuchMethod`. The walk also
+/// recognises mocktail's `Fake` and `Mock` base classes by simple
+/// name, since the analyzed sources typically do not pull in
+/// `package:mocktail` as a resolved dependency. See
+/// [_enclosingDeclaresNoSuchMethod].
 ///
 /// To avoid duplicate noise with `unused_class`, the rule's dispatch
 /// site additionally skips a candidate when its enclosing type is a
@@ -45,30 +51,47 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
   ) sync* {
     for (final declaration in unit.unit.declarations) {
       if (declaration is ClassDeclaration) {
-        // `body` is the analyzer 10.x replacement but is gated on the
-        // default-off `useDeclaringConstructorsAst` experiment, so the
-        // always-available `members` accessor is used. Mirrors the
-        // pattern in `constructor_collector.dart`.
-        // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members, context);
+        yield* _candidatesFor(
+          // `body` is the analyzer 10.x replacement but is gated on the
+          // default-off `useDeclaringConstructorsAst` experiment, so the
+          // always-available `members` accessor is used. Mirrors the
+          // pattern in `constructor_collector.dart`.
+          // ignore: deprecated_member_use
+          declaration.members,
+          declaration.declaredFragment?.element,
+          context,
+        );
       } else if (declaration is MixinDeclaration) {
-        // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members, context);
+        yield* _candidatesFor(
+          // ignore: deprecated_member_use
+          declaration.members,
+          declaration.declaredFragment?.element,
+          context,
+        );
       } else if (declaration is EnumDeclaration) {
-        // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members, context);
+        yield* _candidatesFor(
+          // ignore: deprecated_member_use
+          declaration.members,
+          declaration.declaredFragment?.element,
+          context,
+        );
       } else if (declaration is ExtensionTypeDeclaration) {
-        // ignore: deprecated_member_use
-        yield* _candidatesFor(declaration.members, context);
+        yield* _candidatesFor(
+          // ignore: deprecated_member_use
+          declaration.members,
+          declaration.declaredFragment?.element,
+          context,
+        );
       }
     }
   }
 
   Iterable<_Candidate> _candidatesFor(
     Iterable<ClassMember> members,
+    InterfaceElement? enclosing,
     _CollectorContext context,
   ) sync* {
-    if (_membersDeclareNoSuchMethod(members)) return;
+    if (enclosing != null && _enclosingDeclaresNoSuchMethod(enclosing)) return;
     for (final member in members) {
       if (member is! MethodDeclaration) continue;
       final candidate = _candidateFor(member, context);

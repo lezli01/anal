@@ -87,11 +87,17 @@ part 'unused_function/top_level_function_collector.dart';
 ///   member, so equivalent reasoning applies uniformly to methods,
 ///   operators, getters, and setters.
 /// * **`noSuchMethod`-declaring classes/mixins.** When the enclosing
-///   class or mixin declares its own `noSuchMethod`, every undefined
-///   call lands in `noSuchMethod` rather than a "no such method"
-///   error, so any member name might legitimately be invoked
-///   dynamically. The rule skips member and constructor candidates of
-///   such enclosing declarations to avoid false positives.
+///   class or mixin — or any of its supertypes reached through
+///   `extends`, `with`, `implements`, or mixin `on` clauses — declares
+///   its own `noSuchMethod`, every undefined call lands in
+///   `noSuchMethod` rather than a "no such method" error, so any
+///   member name might legitimately be invoked dynamically. The rule
+///   skips member and constructor candidates of such enclosing
+///   declarations to avoid false positives. Because the analyzed
+///   sources typically do not pull in `package:mocktail`, any
+///   supertype whose simple name is `Fake` or `Mock` is treated as a
+///   `noSuchMethod`-declaring ancestor regardless of whether its body
+///   is visible.
 /// * **Libraries that import `dart:mirrors`.** The `dart:mirrors`
 ///   library can invoke arbitrary methods by name at runtime, so any
 ///   member of an analyzed library that imports `dart:mirrors` is
@@ -328,20 +334,60 @@ bool _isTypeLintIgnoreForFile(String lexeme) {
   return false;
 }
 
-/// Whether [members] contains a `noSuchMethod` method declaration.
+/// Whether [element] participates in a `noSuchMethod`-based dispatch
+/// scheme — i.e. it itself declares an override of `noSuchMethod`, or
+/// any class / mixin / interface reachable through `extends`, `with`,
+/// `implements`, or mixin `on` clauses does.
 ///
 /// A class or mixin that overrides `noSuchMethod` can intercept any
 /// call that would otherwise be a "no such method" error, so the rule
 /// cannot tell whether a member is truly unused or routed through
-/// `noSuchMethod`. Member and constructor collectors use this to skip
-/// candidates declared on such enclosing types.
-bool _membersDeclareNoSuchMethod(Iterable<ClassMember> members) {
-  for (final member in members) {
-    if (member is MethodDeclaration && member.name.lexeme == 'noSuchMethod') {
-      return true;
-    }
+/// `noSuchMethod`. Member and constructor collectors consult this to
+/// skip candidates declared on such enclosing types.
+///
+/// The walk covers the full supertype chain — not just the type's own
+/// AST — because mocktail's idiomatic test double
+/// (`class _FakeViewModel extends Fake implements ViewModel { … }`)
+/// inherits `noSuchMethod` from `Fake` rather than declaring it
+/// directly on the subclass. Because the analyzed sources usually do
+/// not pull in `package:mocktail` as a resolved dependency — the rule
+/// runs on the production code's element model only — the canonical
+/// `Fake` and `Mock` base classes may themselves be unavailable when
+/// iterating supertypes. As a fallback, any supertype whose simple
+/// name is `Fake` or `Mock` is treated as a `noSuchMethod`-declaring
+/// ancestor.
+///
+/// `Object`'s default `noSuchMethod` implementation throws and does NOT
+/// intercept calls, so the walk explicitly skips it.
+bool _enclosingDeclaresNoSuchMethod(InterfaceElement element) {
+  if (_typeOverridesNoSuchMethod(element)) return true;
+  if (_typeIsKnownProxyByName(element)) return true;
+  for (final supertype in element.allSupertypes) {
+    final superElement = supertype.element;
+    if (_typeOverridesNoSuchMethod(superElement)) return true;
+    if (_typeIsKnownProxyByName(superElement)) return true;
   }
   return false;
+}
+
+/// Whether [element] declares its own `noSuchMethod` method.
+///
+/// `Object` is excluded — its default implementation throws and is not
+/// a proxy signal.
+bool _typeOverridesNoSuchMethod(InterfaceElement element) {
+  if (element.name == 'Object') return false;
+  for (final method in element.methods) {
+    if (method.name == 'noSuchMethod') return true;
+  }
+  return false;
+}
+
+/// Whether [element]'s simple name is `Fake` or `Mock` — the canonical
+/// `package:mocktail` base classes whose own source is typically not
+/// part of the analyzed unit set.
+bool _typeIsKnownProxyByName(InterfaceElement element) {
+  final name = element.name;
+  return name == 'Fake' || name == 'Mock';
 }
 
 /// Whether [metadata] contains a bare `@override` annotation.
