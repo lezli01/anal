@@ -69,6 +69,53 @@ Exit codes:
 - `1`: at least one error diagnostic was emitted.
 - `64`: command-line usage error.
 
+## Excluded Files as Reference Sources
+
+`--exclude` (and `excludePaths` in `AnalOptions`) suppresses **diagnostic
+reporting** for matched files. It does **not** remove them from analysis:
+the runner still discovers, parses, and resolves every excluded file
+through `package:analyzer` and feeds the resulting compilation unit into
+the multi-file reference and reachability graph. Excluded files
+participate in cross-file analysis as ordinary sources — they simply
+never receive diagnostics themselves and are not dispatched to
+single-file rules.
+
+For example, with the default `*.g.dart` exclude in effect:
+
+```dart
+// lib/src/handlers.dart  (reportable)
+String formatGreeting(String name) => 'Hi $name';
+```
+
+```dart
+// lib/src/handlers.g.dart  (excluded — not reported on)
+String greet(String name) => formatGreeting(name);
+```
+
+`handlers.g.dart` is excluded, so it can never be flagged. But the
+runner still resolves it, so the call to `formatGreeting` is recorded
+as a real reference: `unused_function` sees `formatGreeting` as used
+and does not flag it, even though its only caller lives in an excluded
+file.
+
+Per built-in rule:
+
+- **`unused_function`** — references in excluded files count as uses
+  of candidate declarations in the reportable set. Generated companions
+  (`*.g.dart`, `*.freezed.dart`, …) that call into hand-written code
+  legitimately keep those declarations alive without producing false
+  positives.
+- **`unused_source_file`** — excluded files act as both edge sources
+  and edge targets in the reachability graph: an excluded file's
+  `import` / `export` / `part` directives can mark non-excluded files
+  as reached, and a non-excluded file can reach an excluded one.
+  Excluded files are never themselves reported as unused, regardless of
+  whether anything in the analyzed set imports them.
+- **`unused_class`** — file-local. The rule only inspects references
+  within the same compilation unit, so excluded-files-as-references has
+  no effect beyond the standard "excluded files are never reported on"
+  guarantee.
+
 ## Built-In Rules
 
 `anal` ships with the following rules enabled by default. To turn one off, pass
