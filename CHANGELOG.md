@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.7](https://github.com/lezli01/anal/compare/v0.3.6...v0.3.7) (2026-05-28)
+
+
+### Features
+
+* better utilization coverage ([#30](https://github.com/lezli01/anal/issues/30)) ([1b86e8f](https://github.com/lezli01/anal/commit/1b86e8f1b1e73c53d135e33fdb679262e0fb4ea5))
+* **multi_file_analysis_context:** add reportableFilePaths field ([6189773](https://github.com/lezli01/anal/commit/61897739c7c69cb7381bd54dd33b42ce54e89481))
+* **reporter:** group ConsoleReporter output by file ([8c4bba5](https://github.com/lezli01/anal/commit/8c4bba5eda36e1b9269b45792427e224dfc00334))
+* **reporter:** group ConsoleReporter output by file ([#28](https://github.com/lezli01/anal/issues/28)) ([1880d63](https://github.com/lezli01/anal/commit/1880d6338ca464a057a9cfa355ae02bd42732694))
+* **samples:** exercise excluded-file references in samples ([9f3301c](https://github.com/lezli01/anal/commit/9f3301cf05be5ebd77526d077f6fecfbe3eeca2e))
+* **unused_function:** only emit diagnostics for reportable files ([2c6ee3e](https://github.com/lezli01/anal/commit/2c6ee3e34b4ebf539acf9f181f77405e0f74a060))
+* **unused_source_file:** only flag reportable files ([13ad2ee](https://github.com/lezli01/anal/commit/13ad2eeeb7da12d76ef6188c0283b2712f0437ba))
+
 ## [0.3.6](https://github.com/lezli01/anal/compare/v0.3.5...v0.3.6) (2026-05-28)
 
 
