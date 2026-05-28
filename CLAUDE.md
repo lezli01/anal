@@ -212,11 +212,22 @@ Closes: #42
 - Attribute third-party code and respect their licenses.
 - Keep documentation accurate — outdated docs are a bug.
 
+## Post-Implementation Verification
+
+After any implementation — rule changes, new rules, sample updates, or analysis runner changes — run the `anal-probe` skill to confirm all sample projects still emit exactly the expected diagnostics and nothing broke:
+
+```
+/anal-probe
+```
+
+This runs `anal` directly on every sample under `samples/` and compares findings against the fixture in `test/samples_test.dart`. It catches unexpected extra findings, missing expected findings, and `_internal` errors that indicate rule bugs.
+
 ## Quick Pre-Commit Checklist
 
 - [ ] `fvm dart format .` — clean
 - [ ] `fvm dart analyze` — zero issues
 - [ ] `fvm flutter test` — all green
+- [ ] `/anal-probe` — all samples pass
 - [ ] CHANGELOG updated (if user-visible)
 - [ ] README updated (if behavior, API, or bundled rules changed)
 - [ ] `samples/` and `test/samples_test.dart` updated for any rule changes
