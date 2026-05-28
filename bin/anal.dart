@@ -97,7 +97,8 @@ ArgParser _buildArgParser() {
       defaultsTo: true,
       negatable: true,
       help:
-          'Apply the built-in exclude patterns (*.g.dart, *.freezed.dart). '
+          'Apply the built-in exclude patterns '
+          '(*.g.dart, *.freezed.dart, **/.dart_tool/**, **/build/**). '
           'Use --no-default-excludes to opt out.',
     );
 }

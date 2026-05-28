@@ -3,19 +3,29 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AnalOptions.defaultExcludePaths', () {
-    test('equals exactly [*.g.dart, *.freezed.dart]', () {
-      expect(
-        AnalOptions.defaultExcludePaths,
-        equals(<String>['*.g.dart', '*.freezed.dart']),
-      );
-    });
+    test(
+      'equals exactly [*.g.dart, *.freezed.dart, **/.dart_tool/**, **/build/**]',
+      () {
+        expect(
+          AnalOptions.defaultExcludePaths,
+          equals(<String>[
+            '*.g.dart',
+            '*.freezed.dart',
+            '**/.dart_tool/**',
+            '**/build/**',
+          ]),
+        );
+      },
+    );
   });
 
   group('AnalOptions.defaults', () {
-    test('excludePaths contains both default patterns', () {
+    test('excludePaths contains every default pattern', () {
       const options = AnalOptions.defaults();
       expect(options.excludePaths, contains('*.g.dart'));
       expect(options.excludePaths, contains('*.freezed.dart'));
+      expect(options.excludePaths, contains('**/.dart_tool/**'));
+      expect(options.excludePaths, contains('**/build/**'));
     });
 
     test('excludePaths is the defaultExcludePaths list', () {

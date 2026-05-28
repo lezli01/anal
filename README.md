@@ -56,10 +56,15 @@ Options:
 - `--no-default-excludes`: disable the built-in default exclude patterns.
   Use `--exclude` to list any patterns you still want excluded.
 
-By default, `anal` excludes generated files matching `*.g.dart` and
-`*.freezed.dart`. Exclude patterns are matched against the file's basename,
-its path relative to the current working directory, and its absolute path;
-any match excludes the file. To opt out of the defaults entirely:
+By default, `anal` excludes generated files and tool/build caches that
+consumer projects almost never want to lint: `*.g.dart`, `*.freezed.dart`,
+`**/.dart_tool/**`, and `**/build/**`. The two directory patterns mirror
+the canonical Dart/Flutter ignore set, so running `anal` against a project
+root will not flag Flutter-generated registrants under `.dart_tool/` or
+build artefacts under `build/`. Exclude patterns are matched against the
+file's basename, its path relative to the current working directory, and
+its absolute path; any match excludes the file. To opt out of the defaults
+entirely:
 
 ```sh
 dart run anal --no-default-excludes

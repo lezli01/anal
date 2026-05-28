@@ -23,8 +23,14 @@ class AnalOptions {
 
   /// Glob patterns excluded by [AnalOptions.defaults].
   ///
-  /// Currently: `*.g.dart` and `*.freezed.dart` — generated files that
-  /// consumer projects almost never want to lint.
+  /// Currently: `*.g.dart`, `*.freezed.dart`, `**/.dart_tool/**`, and
+  /// `**/build/**` — generated files and tool/build caches that consumer
+  /// projects almost never want to lint. The two directory patterns
+  /// mirror the canonical Dart/Flutter ignore set (the same paths that
+  /// `package:analyzer`'s default `analysis_options.yaml` and
+  /// `.gitignore` templates exclude), so running `anal` against a
+  /// project root no longer flags Flutter-generated registrants under
+  /// `.dart_tool/` or build artefacts under `build/`.
   ///
   /// Patterns are matched against the file's basename, its path relative
   /// to the current working directory, and its absolute path (any match
@@ -32,6 +38,8 @@ class AnalOptions {
   static const List<String> defaultExcludePaths = <String>[
     '*.g.dart',
     '*.freezed.dart',
+    '**/.dart_tool/**',
+    '**/build/**',
   ];
 
   /// Creates an [AnalOptions] with explicit values for every field.
@@ -46,8 +54,8 @@ class AnalOptions {
   ///
   /// Analyzes `lib/`, `bin/`, and `test/`, excludes the patterns listed in
   /// [defaultExcludePaths] (generated files such as `*.g.dart` and
-  /// `*.freezed.dart`), and enables every registered rule (via an empty
-  /// [enabledRuleIds]).
+  /// `*.freezed.dart`, plus the `.dart_tool/` and `build/` caches), and
+  /// enables every registered rule (via an empty [enabledRuleIds]).
   const AnalOptions.defaults()
     : includePaths = const ['lib/', 'bin/', 'test/'],
       excludePaths = defaultExcludePaths,
