@@ -46,7 +46,16 @@ samples/all_rules/
                                      # the entry — reachable
       web_impl.dart                  # `dart.library.html` branch of the same
                                      # conditional export — reachable on every
-                                     # platform (both branches are walked)
+                                     # platform (both branches are walked). As
+                                     # the non-selected branch on the VM, its
+                                     # public function/class members are also
+                                     # exempt from unused_function as
+                                     # conditional-export branch targets (N21)
+      framework_overrides.dart       # `LifecycleHost.toString` overrides an
+                                     # out-of-set (`dart:core`) supertype member
+                                     # WITHOUT an `@override` annotation — exempt
+                                     # from unused_function by the
+                                     # annotation-free override rule (N22)
       conditional_hub.dart           # imported by the entry; hosts conditional and
                                      # deferred imports
       _io_impl.dart                  # reached via `if (dart.library.io)` configuration
@@ -113,6 +122,14 @@ samples/all_rules/lib/unused_function_demo.dart:368:7 • [warning] unused_funct
 (Diagnostic ordering depends on the runner's file iteration; the set of
 `(file, ruleId)` pairs above is what's deterministic.)
 
+The `unused_function` `N21`–`N24` negative cases (conditional-export
+branch targets in `lib/src/web_impl.dart`, the annotation-free override
+exemption in `lib/src/framework_overrides.dart`, public members of a
+public type declared outside `lib/src/` in `lib/unused_function_demo.dart`,
+and freezed-annotated constructors in `lib/src/internals.dart`)
+contribute **no** diagnostics — that is the point of each: every
+declaration they introduce is exempt.
+
 ### Positive cases (MUST be flagged)
 
 | Tag  | File                              | Rule                 | Subject                                                                                |
@@ -162,7 +179,10 @@ samples/all_rules/lib/unused_function_demo.dart:368:7 • [warning] unused_funct
 | `N18`| `Holder<int>.value(0)`                       | Factory constructor on a generic sealed class invoked with an explicit type argument resolves to a substituted view of the declared constructor; the same `baseElement` projection lets the declared factory match the call site. |
 | `N19`| `A.new` reached through `B`'s `super.x` forwarding (`class B extends A { const B({super.x}); }` plus `const B(x: 1)`) | Super-parameter forwarding (Dart 2.17+) produces no `SuperConstructorInvocation` AST node — the forwarding is expressed only through the `super.x` parameter. The rule reads the implicit super-constructor target off the constructor element and records it as a use, so `A`'s constructor must NOT be flagged. The same hook covers `class X extends Y {}` with a synthetic default constructor that implicitly invokes `Y.new`. |
 | `N20`| `keptAliveByExcludedRef` in `lib/src/internals.dart` is referenced only from the excluded `lib/src/refs.g.dart` (the runner is invoked with `--exclude '*.g.dart'`) | Excluded files are filtered out of the *reportable* set but still parsed by the frame, so their references flow into the cross-file rule's global reference set. The call in `refs.g.dart` keeps `keptAliveByExcludedRef` alive — without the excluded-files-as-references behavior, this public top-level function in `lib/src/` would be a P11-shaped positive. The excluded file's own private members (e.g. `_refUsage`) are likewise not flagged because the file is not in `reportableFilePaths`. |
-| `N22`| Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
+| `N21`| `platformLabelFn` / `WebPlatformService` members in `lib/src/web_impl.dart` — the non-selected (`dart.library.html`) branch of the conditional export in `lib/all_rules_sample.dart` | A conditional export resolves to exactly one branch at analysis time (mobile on the VM), so members of the non-selected branch are reached only through the wrapper's export surface and look unreferenced. The rule collects every `if (...)` configuration branch URI across the analyzed set and skips every candidate declared in such a file. `web_impl.dart` sits under `lib/src/`, so the public-members-outside-`lib/src/` exemption does NOT apply; the conditional-export branch-target exemption is what keeps its members unflagged. |
+| `N22`| `LifecycleHost.toString` in `lib/src/framework_overrides.dart` | Overrides `Object.toString` — a supertype member declared in `dart:core`, outside the analyzed unit set — WITHOUT an `@override` annotation. A declaration that shadows a supertype member is an override whether or not it is annotated, and framework callbacks (Flutter's `State.createState`, lifecycle hooks) are routinely written without the annotation. When the inherited member is declared outside the analyzed set the rule cannot see its reference sites, so it conservatively treats the override as a use. The class is under `lib/src/`, isolating the override exemption as the sole reason the method survives. |
+| `N23`| every public member of `PublicSurface` and the public getter on `PublicChannel` (both declared in `lib/unused_function_demo.dart`, directly under `lib/`) | Public instance/static methods, getters, setters, and operators on a public class — and public members of a public enum — declared OUTSIDE a `lib/src/` directory form the package's consumable, test-exercised API surface. "No references found in the analyzed set" cannot prove such a member unused, so the rule skips a candidate when both the member name and its enclosing type name are public and the declaring file is not under `lib/src/`, mirroring the existing public-top-level exemption. Private members, and members of private types, remain flagged. |
+| `N24`| Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
 
 Each positive case has a used twin that exercises the negative path for the
 same kind:
@@ -205,6 +225,7 @@ same kind:
 | `lib/unused_class_demo.dart`      | sits directly under `lib/` — entry point.                                              |
 | `lib/src/internals.dart`          | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/mirrors_user.dart`       | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
+| `lib/src/framework_overrides.dart`| imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/l10n/l10n.dart`          | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/l10n/l10n_en.dart`       | imported by `lib/unused_function_demo.dart` (a `lib/` direct-child entry point).       |
 | `lib/src/used.dart`               | imported by `lib/all_rules_sample.dart` (a `lib/` direct-child entry point).           |

@@ -38,6 +38,22 @@ samples/unused_function/
                                      # `keptAliveByExcludedRef` so the
                                      # cross-file rule's global reference
                                      # set still sees that use (N21)
+  lib/src/platform_export.dart       # conditional-export wrapper imported
+                                     # by the entry point; names
+                                     # `platform_io.dart` and
+                                     # `platform_web.dart` in `if (...)`
+                                     # configurations (N22)
+  lib/src/platform_io.dart           # IO branch of the conditional export
+  lib/src/platform_web.dart          # `dart.library.html` branch — the
+                                     # NON-selected branch on the VM; its
+                                     # members are exempt as conditional-
+                                     # export branch targets (N22)
+  lib/src/framework_overrides.dart   # `LifecycleHost.toString` overrides
+                                     # an out-of-set (`dart:core`)
+                                     # supertype member WITHOUT an
+                                     # `@override` annotation — exempt by
+                                     # the annotation-free override rule
+                                     # (N23)
 ```
 
 ## Run it
@@ -76,6 +92,12 @@ samples/unused_function/lib/unused_function_sample.dart:366:7 • [warning] unus
 ```
 
 (Line / column numbers refer to the file named in each line.)
+
+The `N22`–`N25` negative cases (conditional-export branch targets, the
+annotation-free override exemption, public members of a public type
+declared outside `lib/src/`, and freezed-annotated constructors)
+contribute **no** diagnostics — that is the point of each: every
+declaration they introduce is exempt.
 
 ### Positive cases (MUST be flagged)
 
@@ -120,7 +142,10 @@ samples/unused_function/lib/unused_function_sample.dart:366:7 • [warning] unus
 | `N19` | `A.new` reached through `B`'s `super.x` forwarding (`class B extends A { const B({super.x}); }` plus `const B(x: 1)`) | Super-parameter forwarding (Dart 2.17+) produces no `SuperConstructorInvocation` AST node — the forwarding is expressed only through the `super.x` parameter. The rule reads the implicit super-constructor target off the constructor element and records it as a use, so `A`'s constructor must NOT be flagged. Also covers classes that declare no constructor of their own: the synthetic default constructor implicitly invokes super, and the `visitClassDeclaration` hook records that super target. |
 | `N20` | `Route`'s `const Route(this.path)` constructor on a parameterised enum (`enum Route { home('/'), settings('/settings'); const Route(this.path); final String path; }` plus `Route.home.path`) | Each enum-value declaration invokes the enum's constructor at const-evaluation time, but the AST does NOT model that as an `InstanceCreationExpression` / `ConstructorName` — the call is implicit in the `EnumConstantDeclaration` node and only reachable via `node.constructorElement`. The new `visitEnumConstantDeclaration` hook records that target, so the constructor must NOT be flagged. |
 | `N21` | `keptAliveByExcludedRef` in `lib/src/internals.dart` is referenced only from the excluded `lib/src/refs.g.dart` (the runner is invoked with `--exclude '*.g.dart'`) | Excluded files are filtered out of the *reportable* set but still parsed by the frame, so their references flow into the cross-file rule's global reference set. The call in `refs.g.dart` keeps `keptAliveByExcludedRef` alive — without the excluded-files-as-references behavior, this public top-level function in `lib/src/` would be a P11-shaped positive. The excluded file's own private members (e.g. `_refUsage`) are likewise not flagged because the file is not in `reportableFilePaths`. |
-| `N22` | Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced even though they will be reached from generated output. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate of such a class. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
+| `N22` | `platformLabel` / `PlatformService` members in `lib/src/platform_web.dart` (and `lib/src/platform_io.dart`), reached through the conditional-export wrapper `lib/src/platform_export.dart` | A conditional export (`export 'platform_io.dart' if (dart.library.io) 'platform_io.dart' if (dart.library.html) 'platform_web.dart';`) resolves to exactly one branch at analysis time, so members of the non-selected branch are reached only through the wrapper's export surface and look unreferenced. The rule collects every `if (...)` configuration branch URI across the analyzed set and skips every candidate declared in such a file — the whole branch file is treated as part of the platform export surface. Both branch files sit under `lib/src/`, so the public-members-outside-`lib/src/` exemption does NOT apply; the conditional-export branch-target exemption is what keeps their members unflagged. |
+| `N23` | `LifecycleHost.toString` in `lib/src/framework_overrides.dart` | Overrides `Object.toString` — a supertype member declared in `dart:core`, outside the analyzed unit set — WITHOUT an `@override` annotation. A declaration that shadows a supertype member is an override whether or not it is annotated, and framework callbacks (Flutter's `State.createState`, lifecycle hooks) are routinely written without the annotation. When the inherited member is declared outside the analyzed set the rule cannot see its reference sites, so it conservatively treats the override as a use. The class is under `lib/src/`, isolating the override exemption as the sole reason the method survives. |
+| `N24` | every public member of `PublicSurface` and the public getter on `PublicChannel` (both declared in `lib/unused_function_sample.dart`, directly under `lib/`) | Public instance/static methods, getters, setters, and operators on a public class — and public members of a public enum — declared OUTSIDE a `lib/src/` directory form the package's consumable, test-exercised API surface. "No references found in the analyzed set" cannot prove such a member unused, so the rule skips a candidate when both the member name and its enclosing type name are public and the declaring file is not under `lib/src/`, mirroring the existing public-top-level exemption. Private members, and members of private types, remain flagged. |
+| `N25` | Every constructor of `FreezedSample` (`@freezed` bare-identifier form) in `lib/src/internals.dart` | `package:freezed`'s code generator emits boilerplate constructors — a private generative `Foo._()`, an unnamed factory forwarding to a generated `_$Foo`, and one named factory per union case — that are only invoked from generated `*.freezed.dart` part files. Consumers of `anal` typically run the rule before code generation has happened, so the source AST shows those constructors as unreferenced even though they will be reached from generated output. The rule recognises `@freezed`, `@Freezed(...)`, `@unfreezed`, `@Unfreezed(...)`, and `@FreezedUnion(...)` annotations on the enclosing class and skips every constructor candidate of such a class. The sample declares a stub `freezed` identifier locally so it does not need to pull in `package:freezed_annotation` (and `build_runner`); the constructor-invocation form (`@Freezed()`) is covered by the rule's unit tests rather than here. |
 
 Each positive case has a used twin that exercises the rule's negative
 path for the same kind:

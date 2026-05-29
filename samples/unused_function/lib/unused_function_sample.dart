@@ -16,10 +16,17 @@
 // ignore_for_file: unused_element
 library;
 
+import 'src/framework_overrides.dart';
 import 'src/internals.dart';
 import 'src/l10n/l10n.dart';
 import 'src/l10n/l10n_en.dart';
 import 'src/mirrors_user.dart';
+// (N22) Importing the conditional-export wrapper keeps it — and both of
+// the platform branch files it names in `if (...)` configurations —
+// reachable for `unused_source_file`. Nothing here references a symbol
+// from the wrapper; the branch files' members are exempt from
+// `unused_function` purely as conditional-export branch targets.
+import 'src/platform_export.dart';
 
 // === POSITIVE CASES (MUST trigger unused_function) ===
 
@@ -129,6 +136,15 @@ void main() {
   // `hook` lands in the global reference set via that call site, so
   // the `@override` on the concrete subclass is exempt.
   Sub().run();
+
+  // (N23) `LifecycleHost` (in `lib/src/framework_overrides.dart`)
+  // overrides `Object.toString` WITHOUT an `@override` annotation. The
+  // class is instantiated here so it is plainly alive, but `toString`
+  // is never referenced — it is exempt only because it overrides a
+  // supertype member declared outside the analyzed set (`dart:core`),
+  // and the override exemption no longer requires the annotation.
+  // ignore: unused_local_variable
+  final lifecycle = LifecycleHost();
 
   // (P12) `IsolatedSub` is instantiated so it is not flagged by
   // `unused_class`; its `@override` of `IsolatedBase.overrideButUnreachable`
@@ -468,4 +484,47 @@ enum Route {
   const Route(this.path);
 
   final String path;
+}
+
+// === Public members of a public type declared outside `lib/src/` ===
+//
+// (N24) Public instance/static methods, getters, setters, and operators
+// on a PUBLIC class declared OUTSIDE a `lib/src/` directory form the
+// package's consumable, test-exercised API surface. "No references found
+// in the analyzed set" cannot prove such a member unused, so the rule
+// exempts a candidate when both the member name and its enclosing type
+// name are public and the declaring file is not under `lib/src/`,
+// mirroring the existing public-top-level exemption. None of the members
+// below are referenced anywhere, yet none are flagged. (Private members,
+// and members of private types, would still be flagged — see the `P4`
+// private-method positive.)
+
+/// Part of the package's public API surface — every member here is
+/// reachable by external consumers and exercised by tests.
+class PublicSurface {
+  /// Public instance method — exempt as public API surface.
+  void publicMethod() {}
+
+  /// Public static method — exempt as public API surface.
+  static void publicStaticMethod() {}
+
+  /// Public getter — exempt as public API surface.
+  int get publicGetter => 0;
+
+  /// Public setter — exempt as public API surface.
+  set publicSetter(int value) {}
+
+  /// Public operator — exempt as public API surface.
+  PublicSurface operator +(PublicSurface other) => this;
+}
+
+/// (N24) Public enum declared outside `lib/src/`. Its public member is
+/// part of the package's public API surface, so the rule does not flag
+/// it even though nothing references it.
+enum PublicChannel {
+  stable,
+  beta;
+
+  /// Public getter on a public enum — exempt as public API surface.
+  bool get isStable => this == PublicChannel.stable;
 }
