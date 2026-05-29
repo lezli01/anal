@@ -190,13 +190,20 @@ sites that resolve through a substituted view of the same declaration
 applies to factory constructors on generic sealed classes
 (`Holder<int>.value(0)`).
 Overrides of reachable supertype members are treated as uses: when a
-`MethodDeclaration` carries `@override` and the inherited supertype
-member is either declared outside the analyzed unit set (`dart:*`,
+`MethodDeclaration` overrides an inherited supertype member that is
+either declared outside the analyzed unit set (`dart:*`,
 `package:flutter`, any package outside the run) or is itself in the
-global reference set, the override is exempt. This applies uniformly to
-methods, operators, getters, and setters and covers framework callback
-overrides (`State.build`, `Object.toString`, `operator ==`, …) as well
-as in-repo abstract-base / concrete-subtype dispatch.
+global reference set, the override is exempt. No explicit `@override`
+annotation is required — a declaration that shadows a supertype member
+is an override whether or not it is annotated, and framework callbacks
+(`State.createState`, `Widget.createElement`, lifecycle hooks) are
+routinely written without it. The overridden member is resolved via the
+inheritance graph with a by-name fallback across the full
+`extends` / `with` / `implements` / `on` chain, so this applies
+uniformly to methods, operators, getters, and setters and covers
+framework callback overrides (`State.build`, `Object.toString`,
+`operator ==`, …) as well as in-repo abstract-base / concrete-subtype
+dispatch.
 
 Deliberately not flagged:
 

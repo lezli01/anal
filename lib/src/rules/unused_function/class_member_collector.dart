@@ -33,12 +33,13 @@ part of '../unused_function_rule.dart';
 /// reference index — `unused_class` already flags that type, and
 /// re-flagging every member of it would just repeat the report.
 ///
-/// An `@override` member is additionally skipped when its inherited
-/// supertype member is either declared outside the analyzed unit set
-/// or is itself reachable; see [_overridesReachableSupertypeMember]
-/// for the exact rules. This catches framework callback overrides
-/// (`State.build`, `Object.toString`, etc.) as well as in-repo
-/// abstract-base / concrete-subtype dispatch.
+/// A member that overrides a supertype member is additionally skipped
+/// when that inherited member is either declared outside the analyzed
+/// unit set or is itself reachable; see
+/// [_overridesReachableSupertypeMember] for the exact rules. No explicit
+/// `@override` annotation is required. This catches framework callback
+/// overrides (`State.createState`, `Object.toString`, etc.) as well as
+/// in-repo abstract-base / concrete-subtype dispatch.
 ///
 /// The diagnostic anchor is the member's name [Token].
 class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
