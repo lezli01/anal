@@ -155,16 +155,18 @@ void main() {
     });
 
     test('reports unused methods, getters, setters, and operators', () async {
+      // The enclosing type is private (but referenced) so the public
+      // operator is not exempted as part of a public type's API surface.
       final diagnostics = await runRule('''
-class C {
+class _C {
   void _method() {}
   static void _staticMethod() {}
   int get _value => 1;
   set _value(int v) {}
-  C operator +(C other) => this;
+  _C operator +(_C other) => this;
 }
 void main() {
-  C();
+  _C();
 }
 ''');
       expect(diagnostics, hasLength(5));

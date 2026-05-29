@@ -60,6 +60,7 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
           declaration.members,
           declaration.declaredFragment?.element,
           context,
+          filePath: unit.path,
         );
       } else if (declaration is MixinDeclaration) {
         yield* _candidatesFor(
@@ -67,6 +68,7 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
           declaration.members,
           declaration.declaredFragment?.element,
           context,
+          filePath: unit.path,
         );
       } else if (declaration is EnumDeclaration) {
         yield* _candidatesFor(
@@ -74,6 +76,7 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
           declaration.members,
           declaration.declaredFragment?.element,
           context,
+          filePath: unit.path,
         );
       } else if (declaration is ExtensionTypeDeclaration) {
         yield* _candidatesFor(
@@ -81,6 +84,7 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
           declaration.members,
           declaration.declaredFragment?.element,
           context,
+          filePath: unit.path,
         );
       }
     }
@@ -89,23 +93,39 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
   Iterable<_Candidate> _candidatesFor(
     Iterable<ClassMember> members,
     InterfaceElement? enclosing,
-    _CollectorContext context,
-  ) sync* {
+    _CollectorContext context, {
+    required String filePath,
+  }) sync* {
     if (enclosing != null && _enclosingDeclaresNoSuchMethod(enclosing)) return;
+    final enclosingTypeName = enclosing?.name ?? '';
     for (final member in members) {
       if (member is! MethodDeclaration) continue;
-      final candidate = _candidateFor(member, context);
+      final candidate = _candidateFor(
+        member,
+        context,
+        enclosingTypeName: enclosingTypeName,
+        filePath: filePath,
+      );
       if (candidate != null) yield candidate;
     }
   }
 
   _Candidate? _candidateFor(
     MethodDeclaration declaration,
-    _CollectorContext context,
-  ) {
+    _CollectorContext context, {
+    required String enclosingTypeName,
+    required String filePath,
+  }) {
     if (declaration.externalKeyword != null) return null;
     if (_hasVmEntryPointPragma(declaration.metadata)) return null;
     if (_overridesReachableSupertypeMember(declaration, context)) return null;
+    if (_isPublicMemberOfPublicTypeOutsideLibSrc(
+      declaration.name.lexeme,
+      enclosingTypeName,
+      filePath,
+    )) {
+      return null;
+    }
     final element = declaration.declaredFragment?.element;
     if (element == null) return null;
     return _Candidate(
@@ -122,4 +142,31 @@ class _ClassMemberCollector implements _UnusedFunctionCandidateCollector {
     if (declaration.isStatic) return 'static method';
     return 'method';
   }
+}
+
+/// Whether a member named [memberName] declared on a type named
+/// [enclosingTypeName] in [filePath] forms part of the package's
+/// consumable public API surface and therefore cannot be proven unused.
+///
+/// A member is exempt when both the member name and its enclosing type
+/// name are public (neither begins with `_`) and the declaring file is
+/// NOT under a package's `lib/src/` directory. Such members live on the
+/// package's public surface — they are reachable by external consumers
+/// and exercised by tests — so "no references found in the analyzed set"
+/// is not strong enough evidence to flag them, mirroring the existing
+/// public-top-level exemption.
+///
+/// Private members, and members of private types, remain eligible to be
+/// flagged. The `lib/src/` test reuses [_isTopLevelCandidateName]: for a
+/// public [memberName] it returns `true` only when [filePath] lives
+/// under `lib/src/`, so its negation isolates the
+/// outside-`lib/src/` case.
+bool _isPublicMemberOfPublicTypeOutsideLibSrc(
+  String memberName,
+  String enclosingTypeName,
+  String filePath,
+) {
+  if (memberName.startsWith('_')) return false;
+  if (enclosingTypeName.startsWith('_')) return false;
+  return !_isTopLevelCandidateName(memberName, filePath);
 }

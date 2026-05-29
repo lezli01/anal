@@ -29,6 +29,7 @@ void main() {
       String fileName = 'fixture.dart',
     }) async {
       final fixture = File(p.join(tempDir.path, fileName));
+      fixture.parent.createSync(recursive: true);
       fixture.writeAsStringSync(content);
 
       final dartFiles = <String>[
@@ -58,12 +59,14 @@ void main() {
     }
 
     test('flags an unused extension method', () async {
+      // Under lib/src/ a public extension member is still flaggable; the
+      // public-API exemption only applies outside lib/src/.
       final diagnostics = await runRule('''
 extension StringX on String {
   void hello() {}
 }
 void main() {}
-''');
+''', fileName: p.join('lib', 'src', 'fixture.dart'));
       expect(diagnostics, hasLength(1));
       final diagnostic = diagnostics.single;
       expect(diagnostic.ruleId, 'unused_function');
@@ -99,12 +102,14 @@ void main() {
     });
 
     test('flags an unused extension getter', () async {
+      // Under lib/src/ a public extension member is still flaggable; the
+      // public-API exemption only applies outside lib/src/.
       final diagnostics = await runRule('''
 extension StringX on String {
   int get length2 => 0;
 }
 void main() {}
-''');
+''', fileName: p.join('lib', 'src', 'fixture.dart'));
       expect(diagnostics, hasLength(1));
       final diagnostic = diagnostics.single;
       expect(diagnostic.message, contains('length2'));

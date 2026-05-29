@@ -40,6 +40,11 @@ class _ExtensionMemberCollector implements _UnusedFunctionCandidateCollector {
       final extensionNameToken = declaration.name;
       final onTypeToken = declaration.onClause?.extendedType.beginToken;
       final fallbackToken = extensionNameToken ?? onTypeToken;
+      // Unnamed extensions have no name token; an empty name is treated
+      // as non-private (it does not begin with `_`) so the public-API
+      // exemption still applies to public members of an unnamed
+      // extension declared outside `lib/src/`.
+      final enclosingTypeName = extensionNameToken?.lexeme ?? '';
       // `members` is deprecated in favor of `body` (analyzer 10.x), but
       // `body` returns a `ClassBody` whose members getter is only
       // available after a downcast to `BlockClassBody`. Sticking with
@@ -48,7 +53,12 @@ class _ExtensionMemberCollector implements _UnusedFunctionCandidateCollector {
       // ignore: deprecated_member_use
       for (final member in declaration.members) {
         if (member is! MethodDeclaration) continue;
-        final candidate = _candidateFor(member, fallbackToken);
+        final candidate = _candidateFor(
+          member,
+          fallbackToken,
+          enclosingTypeName: enclosingTypeName,
+          filePath: unit.path,
+        );
         if (candidate != null) yield candidate;
       }
     }
@@ -56,10 +66,19 @@ class _ExtensionMemberCollector implements _UnusedFunctionCandidateCollector {
 
   _Candidate? _candidateFor(
     MethodDeclaration declaration,
-    Token? fallbackToken,
-  ) {
+    Token? fallbackToken, {
+    required String enclosingTypeName,
+    required String filePath,
+  }) {
     if (declaration.externalKeyword != null) return null;
     if (_hasVmEntryPointPragma(declaration.metadata)) return null;
+    if (_isPublicMemberOfPublicTypeOutsideLibSrc(
+      declaration.name.lexeme,
+      enclosingTypeName,
+      filePath,
+    )) {
+      return null;
+    }
     final element = declaration.declaredFragment?.element;
     if (element == null) return null;
     final nameToken = declaration.name;

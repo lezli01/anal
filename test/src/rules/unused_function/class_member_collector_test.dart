@@ -126,13 +126,15 @@ void main() {
     });
 
     test('flags an unused operator', () async {
+      // The enclosing type is private (but referenced) so the public
+      // operator is not exempted as part of a public type's API surface.
       final diagnostics = await runRule({
         'fixture.dart': '''
-class C {
-  C operator +(C other) => this;
+class _C {
+  _C operator +(_C other) => this;
 }
 void main() {
-  C();
+  _C();
 }
 ''',
       });
