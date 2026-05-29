@@ -246,7 +246,10 @@ Deliberately not flagged:
   skips every candidate collector for the unit;
 - members of a private, unreferenced class, mixin, enum, extension type, or
   extension — `unused_class` already flags the enclosing declaration, so
-  re-flagging every member would just repeat the report.
+  re-flagging every member would just repeat the report;
+- every declaration in a file `unused_source_file` reports as unreachable —
+  the whole file is already flagged, so listing each function inside it would
+  just repeat the report (see [Rule interaction](#rule-interaction)).
 
 ### `unused_class`
 
@@ -281,7 +284,10 @@ Deliberately not flagged in this release:
 - any private candidate declared in a library that imports
   `dart:mirrors` — reflection can name arbitrary types at runtime, so
   the rule conservatively skips the whole unit;
-- files belonging to libraries that have `part` files.
+- files belonging to libraries that have `part` files;
+- types declared in a file `unused_source_file` reports as unreachable —
+  the whole file is already flagged, so re-flagging each type inside it would
+  just repeat the report (see [Rule interaction](#rule-interaction)).
 
 ### `unused_source_file`
 
@@ -324,6 +330,35 @@ Deliberately not flagged in this release:
 - generated-file basenames such as `*.g.dart` and `*.freezed.dart`,
   which are skipped defensively even if the runner's default excludes
   are turned off.
+
+### Rule interaction
+
+The three "unused" rules form a containment hierarchy — a source file
+contains types, a type contains members:
+
+```
+unused_source_file   (whole file)
+  └── unused_class    (whole type)
+        └── unused_function   (member / constructor)
+```
+
+When a finding fires at an outer level, the levels nested inside it are
+**suppressed** rather than reported again, so a dead artifact is reported
+once at the coarsest level instead of accruing a pile of per-declaration
+warnings:
+
+- a file flagged by `unused_source_file` swallows any `unused_class` and
+  `unused_function` findings inside it — the file is reported once, not once
+  per declaration;
+- a private, unreferenced type flagged by `unused_class` swallows the
+  `unused_function` findings for its members.
+
+The two tiers are enforced in different places. The **file** tier keys off
+`unused_source_file`'s emitted findings, so dropping `unused_source_file`
+from `--rules` lets the per-declaration findings inside those files through
+again. The **type** tier is computed inside `unused_function` itself (from
+whether the enclosing type is a private, unreferenced declaration), so it
+stays in effect whether or not `unused_class` is enabled.
 
 ## Custom Rules
 

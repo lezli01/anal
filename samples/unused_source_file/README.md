@@ -33,7 +33,12 @@ samples/unused_source_file/
                            # reached ONLY by the excluded
                            # `bin/dev_tool.g.dart` (reachable through the
                            # excluded importer)
-      orphan.dart          # never imported (UNREACHABLE — must trigger)
+      orphan.dart          # never imported (UNREACHABLE — must trigger). Also
+                           # declares a private function and a private class;
+                           # both would be flagged by unused_function /
+                           # unused_class in a reachable file, but are
+                           # SUPPRESSED here because the whole file is already
+                           # flagged
   pubspec.yaml             # path-dependent on ../.. (the root anal package)
 ```
 
@@ -78,3 +83,13 @@ frame still parses it so the `import` of
 
 The expected output is a single `unused_source_file` diagnostic pointing at
 `samples/unused_source_file/lib/src/orphan.dart`.
+
+`orphan.dart` deliberately also declares a private function
+(`_unusedOrphanHelper`) and a private class (`_UnusedOrphanHelper`). In a
+reachable file those would be a `unused_function` and an `unused_class`
+positive, but because the whole file is already reported by
+`unused_source_file`, the two nested findings are suppressed — a dead source
+file is reported once, not once per declaration inside it. The single
+`unused_source_file` diagnostic (and the absence of any `unused_class` /
+`unused_function` diagnostic for `orphan.dart`) is what
+[`test/samples_test.dart`](../../test/samples_test.dart) asserts.

@@ -68,7 +68,11 @@ samples/all_rules/
                                      # use (unused_function N20)
       kept_alive_by_excluded.dart    # reached ONLY through the excluded
                                      # `bin/dev_tool.g.dart` importer (unused_source_file)
-      orphan.dart                    # never imported — UNREACHABLE
+      orphan.dart                    # never imported — UNREACHABLE. Also
+                                     # declares a private function and class
+                                     # that are SUPPRESSED (not flagged by
+                                     # unused_function / unused_class) because
+                                     # the whole file is already reported (N25)
 ```
 
 ## Run it
@@ -237,3 +241,9 @@ same kind:
 | `lib/src/_web_impl.dart`          | reached from `conditional_hub.dart` via the `if (dart.library.html)` configuration of the same conditional import. |
 | `lib/src/deferred_target.dart`    | reached from `conditional_hub.dart` via `import ... deferred as ...`; deferred imports contribute the same reachability edge as ordinary imports. |
 | `lib/src/kept_alive_by_excluded.dart` | not flagged — reachable ONLY through the excluded `bin/dev_tool.g.dart` importer. Excluded files are still parsed by the frame, so the import edge keeps this file alive even though the importer itself is not in the reportable set. |
+
+### Cross-rule nesting suppression
+
+| Tag  | Where                                  | Why the inner findings are silent                                                     |
+| ---- | -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `N25`| the private function `_unusedOrphanHelper` and private class `_UnusedOrphanHelper` in `lib/src/orphan.dart` | `orphan.dart` is itself flagged by `unused_source_file` (it is unreachable). The three "unused" rules form a containment hierarchy — `unused_source_file` (whole file) ▸ `unused_class` (whole type) ▸ `unused_function` (member) — and when an outer finding fires, the levels nested inside it are suppressed. So although a reachable file with the same declarations would emit one `unused_function` and one `unused_class` diagnostic, here the dead file is reported once and the two nested findings are dropped. |

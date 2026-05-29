@@ -10,6 +10,7 @@ import 'anal_options.dart';
 import 'analysis_context.dart';
 import 'analyzer_rule.dart';
 import 'diagnostic.dart';
+import 'diagnostic_suppression.dart';
 import 'multi_file_analysis_context.dart';
 import 'multi_file_analyzer_rule.dart';
 import 'rule_registry.dart';
@@ -45,7 +46,11 @@ class AnalysisRunner {
   /// `package:analyzer` so cross-file rules can resolve references into
   /// excluded files, dispatches each enabled single-file rule against
   /// reportable files only, dispatches each enabled multi-file rule once
-  /// over the combined context, and returns the accumulated diagnostics.
+  /// over the combined context, and returns the accumulated diagnostics
+  /// after a final cross-rule pass
+  /// ([suppressFindingsInUnusedSourceFiles]) drops `unused_class` /
+  /// `unused_function` findings nested inside a file `unused_source_file`
+  /// already reported as a whole.
   Future<List<Diagnostic>> run() async {
     final (reportable, supplementary) = _resolveFiles();
     if (reportable.isEmpty) return <Diagnostic>[];
@@ -127,7 +132,13 @@ class AnalysisRunner {
       }
     }
 
-    return diagnostics;
+    // Collapse the "unused" rule family's containment hierarchy: when
+    // `unused_source_file` reports a whole file, drop the `unused_class` /
+    // `unused_function` findings nested inside it so a dead file is
+    // reported once rather than once per declaration. (The class → member
+    // tier is handled inside `unused_function` itself, which has the
+    // element model needed to decide member containment.)
+    return suppressFindingsInUnusedSourceFiles(diagnostics);
   }
 
   /// Returns the absolute, normalized `.dart` paths discovered under

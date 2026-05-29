@@ -8,6 +8,8 @@ import 'package:anal/src/diagnostic.dart';
 import 'package:anal/src/multi_file_analysis_context.dart';
 import 'package:anal/src/multi_file_analyzer_rule.dart';
 import 'package:anal/src/rule_registry.dart';
+import 'package:anal/src/rules/unused_class_rule.dart';
+import 'package:anal/src/rules/unused_function_rule.dart';
 import 'package:anal/src/rules/unused_source_file_rule.dart';
 import 'package:anal/src/severity.dart';
 import 'package:anal/src/source_location.dart';
@@ -511,6 +513,149 @@ void main() {
 
         final diagnostics = await runner.run();
 
+        expect(
+          diagnostics.where((d) => d.ruleId == 'unused_source_file'),
+          isEmpty,
+        );
+      },
+    );
+  });
+
+  group('AnalysisRunner unused-rule nesting suppression', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('anal_runner_nesting_');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    void writeFile(String relativePath, String contents) {
+      final file = File(p.joinAll([tempDir.path, ...p.split(relativePath)]));
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(contents);
+    }
+
+    String absPath(String relativePath) =>
+        p.normalize(p.joinAll([tempDir.path, ...p.split(relativePath)]));
+
+    RuleRegistry buildRegistry() => RuleRegistry()
+      ..registerMultiFile(UnusedFunctionRule())
+      ..register(UnusedClassRule())
+      ..registerMultiFile(UnusedSourceFileRule());
+
+    Future<List<Diagnostic>> run() async {
+      final runner = AnalysisRunner(
+        registry: buildRegistry(),
+        options: AnalOptions(
+          includePaths: [tempDir.path],
+          excludePaths: const [],
+          enabledRuleIds: const <String>{},
+        ),
+      );
+      return runner.run();
+    }
+
+    test(
+      'unused_source_file subsumes unused_class/unused_function inside a dead '
+      'file, but reachable files are still flagged',
+      () async {
+        // `lib/app.dart` sits directly under lib/ (an entry point) and pulls
+        // in `lib/src/used.dart`, keeping it reachable. `lib/src/orphan.dart`
+        // is reached by nothing. Both the reachable and the dead file declare
+        // an unreferenced private function and private class.
+        writeFile(p.join('lib', 'app.dart'), '''
+import 'src/used.dart';
+
+void main() {
+  alive();
+}
+''');
+        writeFile(p.join('lib', 'src', 'used.dart'), '''
+void alive() {}
+
+void _aliveUnusedFn() {}
+
+class _AliveUnusedClass {}
+''');
+        writeFile(p.join('lib', 'src', 'orphan.dart'), '''
+void _deadFn() {}
+
+class _DeadClass {}
+''');
+
+        final diagnostics = await run();
+
+        expect(
+          diagnostics.where((d) => d.ruleId == '_internal'),
+          isEmpty,
+          reason: diagnostics
+              .where((d) => d.ruleId == '_internal')
+              .map((d) => d.message)
+              .toList()
+              .toString(),
+        );
+
+        final orphan = absPath(p.join('lib', 'src', 'orphan.dart'));
+        final used = absPath(p.join('lib', 'src', 'used.dart'));
+
+        // The dead file is reported exactly once, at the file level.
+        expect(
+          diagnostics
+              .where((d) => d.location.filePath == orphan)
+              .map((d) => d.ruleId),
+          ['unused_source_file'],
+        );
+
+        // The reachable file's unreferenced private declarations are still
+        // flagged — the suppression is scoped to dead files only.
+        final usedRuleIds = diagnostics
+            .where((d) => d.location.filePath == used)
+            .map((d) => d.ruleId)
+            .toSet();
+        expect(
+          usedRuleIds,
+          containsAll(<String>['unused_class', 'unused_function']),
+        );
+        expect(
+          diagnostics.where((d) => d.ruleId == 'unused_source_file').length,
+          1,
+        );
+      },
+    );
+
+    test(
+      'disabling unused_source_file lets the per-declaration findings through',
+      () async {
+        // Same dead file, but with only unused_class + unused_function enabled
+        // there is no file-level finding to subsume them, so they surface.
+        writeFile(p.join('lib', 'app.dart'), 'void main() {}\n');
+        writeFile(p.join('lib', 'src', 'orphan.dart'), '''
+void _deadFn() {}
+
+class _DeadClass {}
+''');
+
+        final runner = AnalysisRunner(
+          registry: buildRegistry(),
+          options: AnalOptions(
+            includePaths: [tempDir.path],
+            excludePaths: const [],
+            enabledRuleIds: const <String>{'unused_class', 'unused_function'},
+          ),
+        );
+        final diagnostics = await runner.run();
+
+        final orphan = absPath(p.join('lib', 'src', 'orphan.dart'));
+        final orphanRuleIds = diagnostics
+            .where((d) => d.location.filePath == orphan)
+            .map((d) => d.ruleId)
+            .toSet();
+        expect(orphanRuleIds, <String>{'unused_class', 'unused_function'});
         expect(
           diagnostics.where((d) => d.ruleId == 'unused_source_file'),
           isEmpty,

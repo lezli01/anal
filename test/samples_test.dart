@@ -86,12 +86,23 @@ const Map<String, List<(String, String)>> _expectedDiagnostics = {
   // _web_impl.dart, deferred_target.dart) are negative cases — reached via
   // ordinary import, `part`, every `if (...)` configuration of a conditional
   // import, and a deferred import respectively — and must NOT be flagged.
+  // orphan.dart also declares a private function (`_unusedOrphanHelper`) and
+  // a private class (`_UnusedOrphanHelper`); in a reachable file those would
+  // be flagged by unused_function / unused_class, but because the whole file
+  // is already reported by unused_source_file the nested findings are
+  // suppressed — the single entry below (and the ABSENCE of any
+  // unused_class/unused_function entry for orphan.dart) is the machine-checked
+  // proof of that suppression.
   'unused_source_file': [('unused_source_file', 'lib/src/orphan.dart')],
   // samples/all_rules: eleven diagnostics across all three built-in rules —
   // six unused_function (P11 `unusedPublicTopLevel` in lib/src/internals.dart
   // and the five private/local positives P1..P4 plus P9 in
   // lib/unused_function_demo.dart), four unused_class (P1..P4 in
   // lib/unused_class_demo.dart), and one unused_source_file (lib/src/orphan.dart).
+  // lib/src/orphan.dart additionally declares a private function and a private
+  // class; both would be flagged in a reachable file but are suppressed here
+  // because unused_source_file already reports the whole file, so the count
+  // stays at eleven with NO unused_class/unused_function entry for orphan.dart.
   // As in samples/unused_function, the public-API positives P5..P8, P10, P12
   // and P13 are exempt because they sit on a public type declared outside
   // `lib/src/` (see the public-surface negative case below).
